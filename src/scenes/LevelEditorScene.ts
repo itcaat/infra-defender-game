@@ -388,6 +388,7 @@ export class LevelEditorScene extends Phaser.Scene {
           this.paths.push([...this.currentPath]);
           this.currentPath = [];
           this.drawGrid();
+          this.autoSave();
         }
       }
     });
@@ -404,6 +405,7 @@ export class LevelEditorScene extends Phaser.Scene {
     if (!exists) {
       this.spawnPoints.push(pos);
       this.drawGrid();
+      this.autoSave();
     }
   }
 
@@ -413,6 +415,7 @@ export class LevelEditorScene extends Phaser.Scene {
     if (!exists) {
       this.targetPoints.push(pos);
       this.drawGrid();
+      this.autoSave();
     }
   }
 
@@ -517,6 +520,7 @@ export class LevelEditorScene extends Phaser.Scene {
     });
     
     this.drawGrid();
+    this.autoSave();
   }
 
   private exportLevel(): void {
@@ -593,8 +597,14 @@ export class LevelEditorScene extends Phaser.Scene {
       spawnPoints: this.spawnPoints,
       targetPoints: this.targetPoints,
       paths: this.paths,
+      gridWidth: GAME_CONFIG.PATH_GRID_COLS,
+      gridHeight: GAME_CONFIG.PATH_GRID_ROWS,
     };
-    localStorage.setItem('testLevelData', JSON.stringify(levelData));
+    
+    // Save to both testLevelData (for game) and levelEditorData (for restoration)
+    const levelDataJson = JSON.stringify(levelData);
+    localStorage.setItem('testLevelData', levelDataJson);
+    localStorage.setItem('levelEditorData', levelDataJson);
 
     this.showNotification('🎮 Starting test...');
     
@@ -615,6 +625,7 @@ export class LevelEditorScene extends Phaser.Scene {
     this.paths = [];
     this.currentPath = [];
     this.drawGrid();
+    this.autoSave();
     this.showNotification('🗑️ Level cleared!');
   }
 
@@ -653,6 +664,17 @@ export class LevelEditorScene extends Phaser.Scene {
         console.error('❌ Failed to load saved level:', e);
       }
     }
+  }
+
+  private autoSave(): void {
+    const levelData = {
+      spawnPoints: this.spawnPoints,
+      targetPoints: this.targetPoints,
+      paths: this.paths,
+      gridWidth: GAME_CONFIG.PATH_GRID_COLS,
+      gridHeight: GAME_CONFIG.PATH_GRID_ROWS,
+    };
+    localStorage.setItem('levelEditorData', JSON.stringify(levelData));
   }
 
   private showLoadMenu(): void {

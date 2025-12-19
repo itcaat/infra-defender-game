@@ -199,8 +199,9 @@ export class LevelEditorScene extends Phaser.Scene {
     });
 
     // Action buttons
+    this.createActionButton(width - 560, 60, '📂 Load', () => this.showLoadMenu());
     this.createActionButton(width - 450, 60, '🗑️ Clear', () => this.clearLevel());
-    this.createActionButton(width - 340, 60, '💾 Export', () => this.exportLevel());
+    this.createActionButton(width - 340, 60, '💾 Save', () => this.exportLevel());
     this.createActionButton(width - 230, 60, '🎮 Test', () => this.testLevel());
     this.createActionButton(width - 120, 60, '🔙 Back', () => this.backToMenu());
 
@@ -412,17 +413,45 @@ export class LevelEditorScene extends Phaser.Scene {
     console.log('📋 Level Data:');
     console.log(json);
 
+    // Save to persistent storage
+    const savedLevels = this.getSavedLevels();
+    const nextLevelId = Object.keys(savedLevels).length + 1;
+    savedLevels[nextLevelId] = levelData;
+    localStorage.setItem('savedCustomLevels', JSON.stringify(savedLevels));
+
+    // Also save current level for editor persistence
+    localStorage.setItem('levelEditorData', json);
+
+    // Download as file
+    this.downloadLevelFile(levelData, nextLevelId);
+
     // Copy to clipboard if available
     if (navigator.clipboard) {
       navigator.clipboard.writeText(json).then(() => {
-        this.showNotification('✅ Level exported to console and clipboard!');
+        this.showNotification(`✅ Level ${nextLevelId} saved and downloaded!`);
       });
     } else {
-      this.showNotification('✅ Level exported to console!');
+      this.showNotification(`✅ Level ${nextLevelId} saved and downloaded!`);
     }
+  }
 
-    // Save to localStorage
-    localStorage.setItem('levelEditorData', json);
+  private downloadLevelFile(levelData: any, levelId: number): void {
+    const json = JSON.stringify(levelData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `level-${levelId}-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  private getSavedLevels(): Record<number, any> {
+    const saved = localStorage.getItem('savedCustomLevels');
+    return saved ? JSON.parse(saved) : {};
   }
 
   private testLevel(): void {
@@ -500,11 +529,120 @@ export class LevelEditorScene extends Phaser.Scene {
         this.targetPoints = data.targetPoints || [];
         this.paths = data.paths || [];
         console.log('✅ Loaded saved level data');
-        this.showNotification('✅ Loaded previous level');
+        this.showNotification('✅ Loaded previous session');
       } catch (e) {
         console.error('❌ Failed to load saved level:', e);
       }
     }
+  }
+
+  private showLoadMenu(): void {
+    const savedLevels = this.getSavedLevels();
+    const levelIds = Object.keys(savedLevels).map(Number);
+
+    if (levelIds.length === 0) {
+      this.showNotification('❌ No saved levels found!');
+      return;
+    }
+
+    // Create load menu
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.8);
+    overlay.setOrigin(0, 0);
+    overlay.setDepth(500);
+    overlay.setInteractive();
+
+    const panelWidth = 400;
+    const panelHeight = Math.min(400, 100 + levelIds.length * 60);
+
+    const panel = this.add.graphics();
+    panel.fillStyle(0x1a1a1a, 1);
+    panel.fillRoundedRect(width / 2 - panelWidth / 2, height / 2 - panelHeight / 2, panelWidth, panelHeight, 12);
+    panel.lineStyle(3, 0x00ff00, 1);
+    panel.strokeRoundedRect(width / 2 - panelWidth / 2, height / 2 - panelHeight / 2, panelWidth, panelHeight, 12);
+    panel.setDepth(501);
+
+    const title = this.add.text(width / 2, height / 2 - panelHeight / 2 + 30, '📂 Load Saved Level', {
+      font: 'bold 24px Arial',
+      color: '#00ff00',
+    });
+    title.setOrigin(0.5);
+    title.setDepth(502);
+
+    const container: Phaser.GameObjects.GameObject[] = [overlay, panel, title];
+
+    levelIds.forEach((levelId, index) => {
+      const y = height / 2 - panelHeight / 2 + 80 + index * 60;
+      
+      const btnBg = this.add.graphics();
+      btnBg.fillStyle(0x2a2a2a, 1);
+      btnBg.fillRoundedRect(width / 2 - 150, y - 20, 300, 40, 8);
+      btnBg.setDepth(502);
+      btnBg.setInteractive(
+        new Phaser.Geom.Rectangle(width / 2 - 150, y - 20, 300, 40),
+        Phaser.Geom.Rectangle.Contains
+      );
+
+      const btnText = this.add.text(width / 2, y, `Level ${levelId}`, {
+        font: 'bold 18px Arial',
+        color: '#ffffff',
+      });
+      btnText.setOrigin(0.5);
+      btnText.setDepth(503);
+
+      btnBg.on('pointerover', () => {
+        btnBg.clear();
+        btnBg.fillStyle(0x3a4a3a, 1);
+        btnBg.fillRoundedRect(width / 2 - 150, y - 20, 300, 40, 8);
+      });
+
+      btnBg.on('pointerout', () => {
+        btnBg.clear();
+        btnBg.fillStyle(0x2a2a2a, 1);
+        btnBg.fillRoundedRect(width / 2 - 150, y - 20, 300, 40, 8);
+      });
+
+      btnBg.on('pointerdown', () => {
+        this.loadLevel(levelId, savedLevels[levelId]);
+        container.forEach(obj => {
+          if ('destroy' in obj) {
+            (obj as any).destroy();
+          }
+        });
+      });
+
+      container.push(btnBg, btnText);
+    });
+
+    // Close button
+    const closeBtn = this.add.text(width / 2, height / 2 + panelHeight / 2 - 30, '❌ Close', {
+      font: 'bold 16px Arial',
+      color: '#ff0000',
+      backgroundColor: '#000000',
+      padding: { x: 10, y: 5 },
+    });
+    closeBtn.setOrigin(0.5);
+    closeBtn.setDepth(502);
+    closeBtn.setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerdown', () => {
+      container.forEach(obj => {
+        if ('destroy' in obj) {
+          (obj as any).destroy();
+        }
+      });
+    });
+
+    container.push(closeBtn);
+  }
+
+  private loadLevel(levelId: number, levelData: any): void {
+    this.spawnPoints = levelData.spawnPoints || [];
+    this.targetPoints = levelData.targetPoints || [];
+    this.paths = levelData.paths || [];
+    this.drawGrid();
+    this.showNotification(`✅ Loaded Level ${levelId}`);
   }
 }
 

@@ -17,6 +17,7 @@ import { Enemy } from '../entities/Enemy';
 import { Projectile } from '../entities/Projectile';
 import type { LevelData, GridPosition, TowerType, EnemyType } from '../types/phaser.types';
 import { TOWER_CONFIGS, TOWER_DESCRIPTIONS } from '../config/towers.config';
+import { CUSTOM_LEVELS, createLevelFromConfig } from '../config/levels.config';
 
 export class GameScene extends Phaser.Scene {
   private gridGraphics!: Phaser.GameObjects.Graphics;
@@ -37,12 +38,13 @@ export class GameScene extends Phaser.Scene {
   private level!: LevelData;
   private activeAbilities: Set<AbilityType> = new Set();
   private isTestMode: boolean = false;
+  private waveCompleteRewardGiven: boolean = false;
 
   constructor() {
     super({ key: SCENES.GAME });
   }
 
-  create(): void {
+  async create(): Promise<void> {
     console.log('🎮 GameScene: Initializing...');
 
     // Check if we have test level data from editor
@@ -53,8 +55,32 @@ export class GameScene extends Phaser.Scene {
       this.isTestMode = true;
       localStorage.removeItem('testLevelData'); // Clear after loading
     } else {
-      // Create mock level data
-      this.level = this.createMockLevel();
+      // Try to load from JSON file first
+      const levelFromFile = await this.loadLevelFromFile(1);
+      
+      if (levelFromFile) {
+        console.log('📄 Loading level from JSON file...');
+        this.level = this.createLevelFromEditorData(levelFromFile);
+      } else {
+        // Try to load saved levels from localStorage
+        const savedLevels = this.getSavedLevelsFromStorage();
+        const savedLevelIds = Object.keys(savedLevels).map(Number).sort();
+        
+        if (savedLevelIds.length > 0) {
+          // Load first saved level
+          const levelId = savedLevelIds[0];
+          console.log(`💾 Loading saved level ${levelId}...`);
+          this.level = this.createLevelFromEditorData(savedLevels[levelId]);
+        } else if (CUSTOM_LEVELS[1]) {
+          // Try custom levels from config
+          console.log('🎮 Loading custom level from config...');
+          this.level = createLevelFromConfig(1, CUSTOM_LEVELS[1]);
+        } else {
+          // Fall back to default level
+          console.log('🎮 Loading default level...');
+          this.level = this.createMockLevel();
+        }
+      }
       this.isTestMode = false;
     }
     
@@ -807,6 +833,7 @@ export class GameScene extends Phaser.Scene {
     if (this.waveManager.startNextWave()) {
       gameManager.startNextWave();
       this.startWaveButton.setVisible(false);
+      this.waveCompleteRewardGiven = false; // Reset flag for new wave
       
       // Wave start visual effects
       const centerX = this.cameras.main.width / 2;
@@ -936,47 +963,69 @@ export class GameScene extends Phaser.Scene {
       if (!this.waveManager.isAllWavesComplete()) {
         this.startWaveButton.setVisible(true);
         
-        // Award wave completion bonus
-        const reward = this.waveManager.getWaveReward();
-        if (reward > 0) {
-          gameManager.addMoney(reward);
-          gameManager.completeWave();
-          
-          // Wave complete celebration
-          const centerX = this.cameras.main.width / 2;
-          const centerY = this.cameras.main.height / 2;
-          
-          const completeText = this.add.text(centerX, centerY, `WAVE COMPLETE!\n+$${reward}`, {
-            font: 'bold 48px Arial',
-            color: '#00ff00',
-            stroke: '#000000',
-            strokeThickness: 6,
-            align: 'center',
-          });
-          completeText.setOrigin(0.5);
-          completeText.setDepth(300);
-          completeText.setAlpha(0);
-          
-          this.tweens.add({
-            targets: completeText,
-            alpha: 1,
-            duration: 400,
-            ease: 'Quad.easeOut',
-          });
-          
-          this.tweens.add({
-            targets: completeText,
-            alpha: 0,
-            duration: 400,
-            delay: 1500,
-            onComplete: () => completeText.destroy(),
-          });
+        // Award wave completion bonus (only once)
+        if (!this.waveCompleteRewardGiven) {
+          this.waveCompleteRewardGiven = true;
+          const reward = this.waveManager.getWaveReward();
+          if (reward > 0) {
+            gameManager.addMoney(reward);
+            gameManager.completeWave();
+            
+            // Wave complete celebration
+            const centerX = this.cameras.main.width / 2;
+            const centerY = this.cameras.main.height / 2;
+            
+            const completeText = this.add.text(centerX, centerY, `WAVE COMPLETE!\n+$${reward}`, {
+              font: 'bold 48px Arial',
+              color: '#00ff00',
+              stroke: '#000000',
+              strokeThickness: 6,
+              align: 'center',
+            });
+            completeText.setOrigin(0.5);
+            completeText.setDepth(300);
+            completeText.setAlpha(0);
+            
+            this.tweens.add({
+              targets: completeText,
+              alpha: 1,
+              duration: 400,
+              ease: 'Quad.easeOut',
+            });
+            
+            this.tweens.add({
+              targets: completeText,
+              alpha: 0,
+              duration: 400,
+              delay: 1500,
+              onComplete: () => completeText.destroy(),
+            });
+          }
         }
       } else {
         // All waves completed - victory!
         gameManager.emit('game:victory', gameManager.getState().score);
       }
     }
+  }
+
+  private async loadLevelFromFile(levelId: number): Promise<any | null> {
+    try {
+      const response = await fetch(`/levels/level-${levelId}.json`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ Loaded level-${levelId}.json from file`);
+        return data;
+      }
+    } catch (error) {
+      console.log(`ℹ️ No level-${levelId}.json file found`);
+    }
+    return null;
+  }
+
+  private getSavedLevelsFromStorage(): Record<number, any> {
+    const saved = localStorage.getItem('savedCustomLevels');
+    return saved ? JSON.parse(saved) : {};
   }
 
   private createLevelFromEditorData(editorData: any): LevelData {

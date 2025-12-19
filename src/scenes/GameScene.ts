@@ -33,8 +33,10 @@ export class GameScene extends Phaser.Scene {
   private enemies: Enemy[] = [];
   private projectiles: Projectile[] = [];
   private startWaveButton!: Phaser.GameObjects.Container;
+  private exitTestButton?: Phaser.GameObjects.Container;
   private level!: LevelData;
   private activeAbilities: Set<AbilityType> = new Set();
+  private isTestMode: boolean = false;
 
   constructor() {
     super({ key: SCENES.GAME });
@@ -48,10 +50,12 @@ export class GameScene extends Phaser.Scene {
     if (testLevelData) {
       console.log('🎨 Loading test level from editor...');
       this.level = this.createLevelFromEditorData(JSON.parse(testLevelData));
+      this.isTestMode = true;
       localStorage.removeItem('testLevelData'); // Clear after loading
     } else {
       // Create mock level data
       this.level = this.createMockLevel();
+      this.isTestMode = false;
     }
     
     // Initialize game manager with level
@@ -99,6 +103,11 @@ export class GameScene extends Phaser.Scene {
 
     // Create start wave button
     this.createStartWaveButton();
+
+    // Create exit test button if in test mode
+    if (this.isTestMode) {
+      this.createExitTestButton();
+    }
 
     // Setup input
     this.setupInput();
@@ -637,6 +646,86 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch(SCENES.PAUSE);
   }
 
+  private createExitTestButton(): void {
+    const x = 120;
+    const y = this.cameras.main.height - 70;
+
+    // Button shadow
+    const shadow = this.add.graphics();
+    shadow.fillStyle(0x000000, 0.5);
+    shadow.fillRoundedRect(-82.5, -27.5, 165, 55, 12);
+
+    // Button background with gradient
+    const bg = this.add.graphics();
+    bg.fillStyle(0xaa0000, 1);
+    bg.fillRoundedRect(-80, -25, 160, 50, 12);
+    
+    // Inner highlight
+    bg.fillStyle(0xffffff, 0.15);
+    bg.fillRoundedRect(-75, -20, 150, 15, 10);
+    
+    // Border
+    bg.lineStyle(2, 0xffffff, 0.3);
+    bg.strokeRoundedRect(-80, -25, 160, 50, 12);
+
+    // Interactive area
+    const hitArea = this.add.rectangle(0, 0, 160, 50, 0xffffff, 0);
+    hitArea.setInteractive({ useHandCursor: true });
+
+    // Button text with shadow
+    const labelShadow = this.add.text(1, 1, '🔙 Exit Test', {
+      font: 'bold 18px Arial',
+      color: '#000000',
+    });
+    labelShadow.setOrigin(0.5);
+    labelShadow.setAlpha(0.5);
+
+    const label = this.add.text(0, 0, '🔙 Exit Test', {
+      font: 'bold 18px Arial',
+      color: '#ffffff',
+    });
+    label.setOrigin(0.5);
+
+    this.exitTestButton = this.add.container(x, y, [shadow, bg, hitArea, labelShadow, label]);
+    this.exitTestButton.setDepth(100);
+
+    // Hover effects
+    hitArea.on('pointerover', () => {
+      this.tweens.add({
+        targets: this.exitTestButton,
+        scale: 1.05,
+        duration: 150,
+        ease: 'Back.easeOut',
+      });
+    });
+
+    hitArea.on('pointerout', () => {
+      this.tweens.add({
+        targets: this.exitTestButton,
+        scale: 1,
+        duration: 150,
+      });
+    });
+
+    hitArea.on('pointerdown', () => {
+      this.tweens.add({
+        targets: this.exitTestButton,
+        scale: 0.95,
+        duration: 50,
+        yoyo: true,
+        onComplete: () => this.exitTestMode(),
+      });
+    });
+  }
+
+  private exitTestMode(): void {
+    console.log('🔙 Exiting test mode...');
+    gameManager.reset();
+    this.scene.stop(SCENES.UI);
+    this.scene.stop();
+    this.scene.start(SCENES.LEVEL_EDITOR);
+  }
+
   private createStartWaveButton(): void {
     const x = this.cameras.main.width - 120;
     const y = this.cameras.main.height - 70;
@@ -770,16 +859,23 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnEnemy(type: EnemyType): void {
-    // Randomly choose a spawn point and its corresponding path
-    const pathIndex = Math.floor(Math.random() * this.level.spawnPoints.length);
-    const spawnPoint = this.level.spawnPoints[pathIndex];
+    // Randomly choose a path
+    const pathIndex = Math.floor(Math.random() * this.level.paths.length);
     const path = this.level.paths[pathIndex];
+    
+    if (!path || path.length === 0) {
+      console.error('❌ Invalid path selected!');
+      return;
+    }
+    
+    // Use the first point of the path as spawn point
+    const spawnPoint = path[0];
     const worldPos = this.gridSystem.gridToWorld(spawnPoint.x, spawnPoint.y);
     
     const enemy = new Enemy(this, worldPos.x, worldPos.y, type, path);
     this.enemies.push(enemy);
 
-    console.log(`👾 Spawned ${type} from spawn point ${pathIndex + 1}`);
+    console.log(`👾 Spawned ${type} from path ${pathIndex + 1} at (${spawnPoint.x}, ${spawnPoint.y})`);
   }
 
   private spawnProjectile(tower: Tower, target: Enemy, damage: number): void {

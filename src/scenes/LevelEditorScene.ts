@@ -19,6 +19,7 @@ export class LevelEditorScene extends Phaser.Scene {
   private currentPath: GridPosition[] = [];
   private isDrawing: boolean = false;
   private modeButtons: Map<EditorMode, Phaser.GameObjects.Container> = new Map();
+  private labels: Phaser.GameObjects.Text[] = [];
 
   constructor() {
     super({ key: SCENES.LEVEL_EDITOR });
@@ -60,6 +61,10 @@ export class LevelEditorScene extends Phaser.Scene {
 
   private drawGrid(): void {
     this.gridGraphics.clear();
+    
+    // Clear all labels
+    this.labels.forEach(label => label.destroy());
+    this.labels = [];
 
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
@@ -96,6 +101,7 @@ export class LevelEditorScene extends Phaser.Scene {
       });
       label.setOrigin(0.5);
       label.setDepth(10);
+      this.labels.push(label);
     });
 
     // Draw target points (red)
@@ -118,6 +124,7 @@ export class LevelEditorScene extends Phaser.Scene {
       });
       label.setOrigin(0.5);
       label.setDepth(10);
+      this.labels.push(label);
     });
 
     // Draw paths (yellow)
@@ -142,6 +149,7 @@ export class LevelEditorScene extends Phaser.Scene {
           });
           label.setOrigin(0.5);
           label.setDepth(10);
+          this.labels.push(label);
         }
       });
     });
@@ -198,7 +206,7 @@ export class LevelEditorScene extends Phaser.Scene {
 
     // Instructions
     const instructions = this.add.text(width / 2, this.cameras.main.height - 30, 
-      'Click cells to place. Path mode: hold and drag. Erase: click to remove.', {
+      'Paths start at spawn point and end at target. Hold and drag to draw paths.', {
       font: '14px Arial',
       color: '#ffffff',
       backgroundColor: '#000000',
@@ -418,17 +426,18 @@ export class LevelEditorScene extends Phaser.Scene {
   }
 
   private testLevel(): void {
-    if (this.spawnPoints.length === 0) {
-      this.showNotification('❌ Add at least one spawn point!');
-      return;
-    }
-    if (this.targetPoints.length === 0) {
-      this.showNotification('❌ Add at least one target point!');
-      return;
-    }
     if (this.paths.length === 0) {
       this.showNotification('❌ Draw at least one path!');
       return;
+    }
+
+    // Validate that paths are valid
+    for (let i = 0; i < this.paths.length; i++) {
+      const path = this.paths[i];
+      if (path.length < 2) {
+        this.showNotification(`❌ Path ${i + 1} is too short!`);
+        return;
+      }
     }
 
     // Save level data

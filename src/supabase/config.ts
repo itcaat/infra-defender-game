@@ -2,6 +2,8 @@
  * Supabase configuration
  */
 
+/// <reference types="vite/client" />
+
 export interface SupabaseConfig {
   url: string;
   anonKey: string;

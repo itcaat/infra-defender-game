@@ -15,7 +15,7 @@ import { AbilityBar } from '../ui/AbilityBar';
 import { Tower } from '../entities/Tower';
 import { Enemy } from '../entities/Enemy';
 import { Projectile } from '../entities/Projectile';
-import type { LevelData, GridPosition, TowerType, EnemyType } from '../types/phaser.types';
+import type { LevelData, TowerType, EnemyType } from '../types/phaser.types';
 import { TOWER_CONFIGS, TOWER_DESCRIPTIONS } from '../config/towers.config';
 import { CUSTOM_LEVELS, createLevelFromConfig } from '../config/levels.config';
 
@@ -99,6 +99,9 @@ export class GameScene extends Phaser.Scene {
 
     // Create grid
     this.createGrid();
+
+    // Render decorations if any
+    this.renderDecorations();
 
     // Create preview graphics
     this.previewGraphics = this.add.graphics();
@@ -191,6 +194,32 @@ export class GameScene extends Phaser.Scene {
 
     this.gridGraphics = this.add.graphics();
     this.gridGraphics.setDepth(1);
+  }
+
+  private renderDecorations(): void {
+    // Render decorative objects if present in level
+    if (this.level.decorations && this.level.decorations.length > 0) {
+      const pathGridSize = GAME_CONFIG.PATH_GRID_SIZE;
+      const decorSize = pathGridSize * 8; // 8x8 grid cells (64x64 pixels)
+      this.level.decorations.forEach(decor => {
+        const worldX = decor.position.x * pathGridSize + pathGridSize / 2;
+        const worldY = decor.position.y * pathGridSize + pathGridSize / 2;
+        
+        // Use DOM element for animated GIF
+        const dom = this.add.dom(worldX, worldY, 'img', {
+          width: `${decorSize}px`,
+          height: `${decorSize}px`,
+          'pointer-events': 'none',
+          transform: 'translate(-50%, -50%)', // Center the image
+        });
+        
+        const img = dom.node as HTMLImageElement;
+        img.src = `animations/${decor.type === 'tux' ? 'tux-linux-tux.gif' : decor.type === 'tenor' ? 'tenor.gif' : 'peppo-dance.gif'}`;
+        
+        dom.setDepth(2); // Above grid, below towers
+      });
+      console.log(`✨ Rendered ${this.level.decorations.length} decorations`);
+    }
   }
 
   private setupInput(): void {
@@ -440,11 +469,11 @@ export class GameScene extends Phaser.Scene {
       console.log('🌊 Wave started:', wave);
     });
 
-    gameManager.on('game:over', (score: number) => {
+    gameManager.on('game:over', (_score: number) => {
       this.onGameOver();
     });
 
-    gameManager.on('game:victory', (score: number) => {
+    gameManager.on('game:victory', (_score: number) => {
       this.onVictory();
     });
 
@@ -624,7 +653,7 @@ export class GameScene extends Phaser.Scene {
 
       case 'silence_alerts':
         // Find weakest enemy
-        let weakestEnemy: Enemy | null = null;
+        let weakestEnemy: Enemy | undefined = undefined;
         let lowestHealth = Infinity;
         
         this.enemies.forEach(enemy => {
@@ -637,10 +666,11 @@ export class GameScene extends Phaser.Scene {
 
         if (weakestEnemy) {
           console.log('💀 Silence Alerts: Killed weakest enemy');
-          weakestEnemy.takeDamage(9999);
+          const enemy: Enemy = weakestEnemy; // Type assertion for TypeScript
+          enemy.takeDamage(9999);
           
           // Extra visual effect - expanding circle
-          const flash = this.add.circle(weakestEnemy.x, weakestEnemy.y, 60, 0xff0000, 0);
+          const flash = this.add.circle(enemy.x, enemy.y, 60, 0xff0000, 0);
           flash.setStrokeStyle(4, 0xff0000, 0.8);
           this.tweens.add({
             targets: flash,
@@ -911,17 +941,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
+    // Wait for scene to be fully initialized
+    if (!this.waveManager || !this.abilitySystem || !this.abilityBar) {
+      return;
+    }
+
     // Filter active enemies first
     this.enemies = this.enemies.filter(e => e.active);
     
     // Update all towers (pass enemies for targeting, with ability buffs)
-    const attackSpeedMultiplier = this.activeAbilities.has('scale_up') ? 2 : 1;
     this.towers.forEach(tower => {
-      // Temporarily boost attack speed if Scale Up is active
-      if (attackSpeedMultiplier > 1) {
-        const originalSpeed = tower.getData().attackSpeed;
-        // This is a hack, better would be to pass multiplier to update
-      }
+      // TODO: Implement Scale Up ability attack speed boost
       tower.update(time, delta, this.enemies);
     });
 
@@ -933,13 +963,8 @@ export class GameScene extends Phaser.Scene {
       if (!enemy.active) return;
       
       // Apply slow if Emergency Cache is active
-      if (enemySlowMultiplier < 1) {
-        const originalSpeed = enemy.getData().speed;
-        const slowedDelta = delta * enemySlowMultiplier;
-        enemy.update(time, slowedDelta);
-      } else {
-        enemy.update(time, delta);
-      }
+      const slowedDelta = delta * enemySlowMultiplier;
+      enemy.update(time, slowedDelta);
     });
 
     // Update all projectiles
@@ -1038,6 +1063,7 @@ export class GameScene extends Phaser.Scene {
       spawnPoints: editorData.spawnPoints,
       targetPoints: editorData.targetPoints,
       paths: editorData.paths,
+      decorations: editorData.decorations || [], // Add decorations
       buildableArea: [],
       waves: [
         {
@@ -1141,6 +1167,7 @@ export class GameScene extends Phaser.Scene {
         ],
       ],
       buildableArea: [], // Will be filled based on paths
+      decorations: [], // No decorations in default level
       waves: [
         {
           waveNumber: 1,

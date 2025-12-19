@@ -24,10 +24,6 @@ export class AbilityBar extends Phaser.GameObjects.Container {
   }
 
   private createBar(abilities: Ability[]): void {
-    const theme = telegram.isTelegram() 
-      ? telegram.getTheme()! 
-      : telegram.getDefaultTheme();
-
     const startX = 20;
     const startY = this.scene.cameras.main.height / 2 - 50;
     const buttonSize = 70;
@@ -129,7 +125,7 @@ export class AbilityBar extends Phaser.GameObjects.Container {
     return button;
   }
 
-  private showTooltip(ability: Ability, x: number, y: number): void {
+  private showTooltip(_ability: Ability, _x: number, _y: number): void {
     // TODO: Implement tooltip
   }
 

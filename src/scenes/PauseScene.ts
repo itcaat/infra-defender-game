@@ -44,13 +44,40 @@ export class PauseScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ESC', () => this.resumeGame());
   }
 
-  private createButton(x: number, y: number, text: string, onClick: () => void): void {
+  private createButton(x: number, y: number, text: string, onClick: () => void): Phaser.GameObjects.Container {
     const theme = telegram.isTelegram() 
       ? telegram.getTheme()! 
       : telegram.getDefaultTheme();
 
-    const bg = this.add.rectangle(0, 0, 250, 50, parseInt(theme.buttonColor.replace('#', '0x'), 16));
-    bg.setInteractive({ useHandCursor: true });
+    // Button shadow
+    const shadow = this.add.graphics();
+    shadow.fillStyle(0x000000, 0.5);
+    shadow.fillRoundedRect(-150 + 3, -25 + 3, 300, 50, 12);
+
+    // Button background with gradient
+    const bg = this.add.graphics();
+    bg.fillStyle(parseInt(theme.buttonColor.replace('#', '0x'), 16), 1);
+    bg.fillRoundedRect(-150, -25, 300, 50, 12);
+    
+    // Inner highlight
+    bg.fillStyle(0xffffff, 0.15);
+    bg.fillRoundedRect(-145, -20, 290, 15, 10);
+    
+    // Border
+    bg.lineStyle(2, 0xffffff, 0.3);
+    bg.strokeRoundedRect(-150, -25, 300, 50, 12);
+
+    // Interactive area
+    const hitArea = this.add.rectangle(0, 0, 300, 50, 0xffffff, 0);
+    hitArea.setInteractive({ useHandCursor: true });
+
+    // Button text with shadow
+    const labelShadow = this.add.text(1, 1, text, {
+      font: 'bold 20px Arial',
+      color: '#000000',
+    });
+    labelShadow.setOrigin(0.5);
+    labelShadow.setAlpha(0.5);
 
     const label = this.add.text(0, 0, text, {
       font: 'bold 20px Arial',
@@ -58,20 +85,39 @@ export class PauseScene extends Phaser.Scene {
     });
     label.setOrigin(0.5);
 
-    const button = this.add.container(x, y, [bg, label]);
+    // Container
+    const button = this.add.container(x, y, [shadow, bg, hitArea, labelShadow, label]);
     button.setDepth(10);
 
-    bg.on('pointerover', () => {
-      bg.setFillStyle(parseInt(theme.buttonColor.replace('#', '0x'), 16), 0.8);
-      button.setScale(1.05);
+    // Hover effects
+    hitArea.on('pointerover', () => {
+      this.tweens.add({
+        targets: button,
+        scale: 1.05,
+        duration: 150,
+        ease: 'Back.easeOut',
+      });
     });
 
-    bg.on('pointerout', () => {
-      bg.setFillStyle(parseInt(theme.buttonColor.replace('#', '0x'), 16), 1);
-      button.setScale(1);
+    hitArea.on('pointerout', () => {
+      this.tweens.add({
+        targets: button,
+        scale: 1,
+        duration: 150,
+      });
     });
 
-    bg.on('pointerdown', onClick);
+    hitArea.on('pointerdown', () => {
+      this.tweens.add({
+        targets: button,
+        scale: 0.95,
+        duration: 50,
+        yoyo: true,
+        onComplete: onClick,
+      });
+    });
+
+    return button;
   }
 
   private resumeGame(): void {

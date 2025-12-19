@@ -3,7 +3,7 @@
  */
 
 import Phaser from 'phaser';
-import { SCENES, COLORS } from '../config/game.config';
+import { SCENES } from '../config/game.config';
 import { telegram } from '../telegram/telegram';
 
 export class MainMenuScene extends Phaser.Scene {
@@ -105,7 +105,7 @@ export class MainMenuScene extends Phaser.Scene {
     }
 
     // Start button
-    const startButton = this.createButton(
+    this.createButton(
       width / 2,
       height / 2 + 50,
       'START GAME',
@@ -113,7 +113,7 @@ export class MainMenuScene extends Phaser.Scene {
     );
 
     // Leaderboard button
-    const leaderboardButton = this.createButton(
+    this.createButton(
       width / 2,
       height / 2 + 130,
       'LEADERBOARD',
@@ -121,7 +121,7 @@ export class MainMenuScene extends Phaser.Scene {
     );
 
     // Settings button
-    const settingsButton = this.createButton(
+    this.createButton(
       width / 2,
       height / 2 + 210,
       'SETTINGS',

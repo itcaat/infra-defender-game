@@ -9,12 +9,12 @@ import { TOWER_DESCRIPTIONS } from '../config/towers.config';
 
 export class TowerInfoPanel extends Phaser.GameObjects.Container {
   private tower: Tower | null = null;
-  private background: Phaser.GameObjects.Rectangle;
-  private nameText: Phaser.GameObjects.Text;
-  private statsText: Phaser.GameObjects.Text;
-  private upgradeButton: Phaser.GameObjects.Container;
-  private sellButton: Phaser.GameObjects.Container;
-  private closeButton: Phaser.GameObjects.Container;
+  private background!: Phaser.GameObjects.Rectangle;
+  private nameText!: Phaser.GameObjects.Text;
+  private statsText!: Phaser.GameObjects.Text;
+  private upgradeButton!: Phaser.GameObjects.Container;
+  private sellButton!: Phaser.GameObjects.Container;
+  private closeButton!: Phaser.GameObjects.Container;
   private onUpgrade: (tower: Tower) => void;
   private onSell: (tower: Tower) => void;
 

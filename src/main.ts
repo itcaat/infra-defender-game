@@ -59,6 +59,9 @@ async function initializeApp() {
     height: GAME_CONFIG.HEIGHT,
     parent: 'game-container',
     backgroundColor: theme.bgColor,
+    dom: {
+      createContainer: true,
+    },
     scene: [
       BootScene,
       PreloadScene,

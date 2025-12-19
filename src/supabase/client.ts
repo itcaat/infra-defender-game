@@ -8,7 +8,6 @@ import type {
   PlayerProfile,
   GameSession,
   LeaderboardEntry,
-  MetaProgress,
 } from '../types/game.types';
 
 export class SupabaseService {
@@ -133,7 +132,7 @@ export class SupabaseService {
 
     try {
       // Check if profile exists
-      const { data: existing, error: fetchError } = await this.client!
+      const { data: existing } = await this.client!
         .from('profiles')
         .select('*')
         .eq('telegram_id', telegramId)

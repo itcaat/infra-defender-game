@@ -4,6 +4,9 @@
 
 import type { TowerType, EnemyType } from './game.types';
 
+// Re-export types from game.types
+export type { TowerType, EnemyType } from './game.types';
+
 // Grid position
 export interface GridPosition {
   x: number; // Grid column
@@ -50,6 +53,15 @@ export interface WaveConfig {
   reward: number; // Bonus money for completing wave
 }
 
+// Decorative object (animations, props)
+export type DecorType = 'tenor' | 'tux' | 'peppo';
+
+export interface DecorObject {
+  type: DecorType;
+  position: GridPosition;
+  scale?: number;
+}
+
 // Level data
 export interface LevelData {
   id: number;
@@ -61,6 +73,7 @@ export interface LevelData {
   targetPoints: GridPosition[];
   paths: GridPosition[][]; // Multiple possible paths
   buildableArea: GridPosition[];
+  decorations?: DecorObject[]; // Optional decorative objects
   waves: WaveConfig[];
   startingMoney: number;
   startingErrorBudget: number;

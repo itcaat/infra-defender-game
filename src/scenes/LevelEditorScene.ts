@@ -4,24 +4,26 @@
 
 import Phaser from 'phaser';
 import { SCENES, GAME_CONFIG } from '../config/game.config';
-import { GridSystem } from '../systems/GridSystem';
-import type { GridPosition } from '../types/phaser.types';
+import type { GridPosition, DecorObject, DecorType } from '../types/phaser.types';
 
-type EditorMode = 'spawn' | 'target' | 'path' | 'erase';
+type EditorMode = 'spawn' | 'target' | 'path' | 'decor' | 'erase';
 
 export class LevelEditorScene extends Phaser.Scene {
   private gridGraphics!: Phaser.GameObjects.Graphics;
   private previewGraphics!: Phaser.GameObjects.Graphics;
-  private gridSystem!: GridSystem;
-  private mode: EditorMode = 'spawn';
+  private previewSprite?: Phaser.GameObjects.Image | Phaser.GameObjects.DOMElement;
+  private mode: EditorMode | null = null; // No mode selected by default
+  private selectedDecorType: DecorType = 'tux';
   private spawnPoints: GridPosition[] = [];
   private targetPoints: GridPosition[] = [];
   private paths: GridPosition[][] = [];
+  private decorations: DecorObject[] = [];
+  private decorSprites: (Phaser.GameObjects.Image | Phaser.GameObjects.DOMElement)[] = [];
   private currentPath: GridPosition[] = [];
   private isDrawing: boolean = false;
   private modeButtons: Map<EditorMode, Phaser.GameObjects.Container> = new Map();
+  private decorButtons: Map<DecorType, Phaser.GameObjects.Container> = new Map();
   private labels: Phaser.GameObjects.Text[] = [];
-  private useFinePath: boolean = true; // Use fine grid for paths
 
   constructor() {
     super({ key: SCENES.LEVEL_EDITOR });
@@ -30,9 +32,6 @@ export class LevelEditorScene extends Phaser.Scene {
   create(): void {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
-
-    // Initialize grid system
-    this.gridSystem = new GridSystem();
 
     // Try to load saved level data
     this.loadSavedLevel();
@@ -74,28 +73,16 @@ export class LevelEditorScene extends Phaser.Scene {
 
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
-    const gridSize = GAME_CONFIG.GRID_SIZE;
     const pathGridSize = GAME_CONFIG.PATH_GRID_SIZE;
 
-    // Draw fine grid (always visible, subtle)
-    this.gridGraphics.lineStyle(1, 0xffaa00, 0.15);
+    // Draw fine grid only (subtle orange)
+    this.gridGraphics.lineStyle(1, 0xffaa00, 0.2);
     for (let x = 0; x <= GAME_CONFIG.PATH_GRID_COLS; x++) {
       const worldX = x * pathGridSize;
       this.gridGraphics.lineBetween(worldX, 0, worldX, height);
     }
     for (let y = 0; y <= GAME_CONFIG.PATH_GRID_ROWS; y++) {
       const worldY = y * pathGridSize;
-      this.gridGraphics.lineBetween(0, worldY, width, worldY);
-    }
-
-    // Draw main grid lines (bold)
-    this.gridGraphics.lineStyle(2, 0x00ff00, 0.5);
-    for (let x = 0; x <= GAME_CONFIG.GRID_COLS; x++) {
-      const worldX = x * gridSize;
-      this.gridGraphics.lineBetween(worldX, 0, worldX, height);
-    }
-    for (let y = 0; y <= GAME_CONFIG.GRID_ROWS; y++) {
-      const worldY = y * gridSize;
       this.gridGraphics.lineBetween(0, worldY, width, worldY);
     }
 
@@ -213,11 +200,12 @@ export class LevelEditorScene extends Phaser.Scene {
     title.setDepth(100);
 
     // Mode buttons
-    const modes: EditorMode[] = ['spawn', 'target', 'path', 'erase'];
+    const modes: EditorMode[] = ['spawn', 'target', 'path', 'decor', 'erase'];
     const modeLabels = {
       spawn: '🟢 Spawn',
       target: '🔴 Target',
       path: '🟡 Path',
+      decor: '🎨 Decor',
       erase: '❌ Erase',
     };
 
@@ -227,6 +215,9 @@ export class LevelEditorScene extends Phaser.Scene {
       const button = this.createModeButton(x, y, modeLabels[mode], mode);
       this.modeButtons.set(mode, button);
     });
+
+    // Decor type buttons (shown only in decor mode)
+    this.createDecorButtons();
 
     // Action buttons
     this.createActionButton(width - 560, 60, '📂 Load', () => this.showLoadMenu());
@@ -293,7 +284,7 @@ export class LevelEditorScene extends Phaser.Scene {
       const bg = button.list[0] as Phaser.GameObjects.Graphics;
       bg.clear();
       
-      if (mode === this.mode) {
+      if (this.mode && mode === this.mode) {
         // Selected
         bg.fillStyle(0x00aa00, 1);
         bg.fillRoundedRect(0, 0, 100, 40, 8);
@@ -304,6 +295,86 @@ export class LevelEditorScene extends Phaser.Scene {
         bg.fillStyle(0x2a2a2a, 1);
         bg.fillRoundedRect(0, 0, 100, 40, 8);
         bg.lineStyle(2, 0x00ff00, 0.5);
+        bg.strokeRoundedRect(0, 0, 100, 40, 8);
+      }
+    });
+
+    // Show/hide decor buttons
+    this.updateDecorButtonsVisibility();
+  }
+
+  private createDecorButtons(): void {
+    const decorTypes: DecorType[] = ['tux', 'tenor', 'peppo'];
+    const decorLabels: Record<DecorType, string> = {
+      tux: '🐧 Tux',
+      tenor: '💻 Tenor',
+      peppo: '🐸 Peppo',
+    };
+
+    decorTypes.forEach((decorType, index) => {
+      const x = 20 + index * 110;
+      const y = 110; // Below mode buttons
+      const button = this.createDecorTypeButton(x, y, decorLabels[decorType], decorType);
+      this.decorButtons.set(decorType, button);
+    });
+
+    // Initially hidden
+    this.updateDecorButtonsVisibility();
+  }
+
+  private createDecorTypeButton(x: number, y: number, label: string, decorType: DecorType): Phaser.GameObjects.Container {
+    const bg = this.add.graphics();
+    bg.fillStyle(0x2a2a2a, 1);
+    bg.fillRoundedRect(0, 0, 100, 40, 8);
+    bg.lineStyle(2, 0xaa00aa, 0.5);
+    bg.strokeRoundedRect(0, 0, 100, 40, 8);
+
+    const hitArea = this.add.rectangle(50, 20, 100, 40, 0xffffff, 0);
+    hitArea.setInteractive({ useHandCursor: true });
+
+    const text = this.add.text(50, 20, label, {
+      font: 'bold 12px Arial',
+      color: '#ffffff',
+    });
+    text.setOrigin(0.5);
+
+    const button = this.add.container(x, y, [bg, hitArea, text]);
+    button.setDepth(100);
+
+    hitArea.on('pointerdown', () => {
+      this.selectedDecorType = decorType;
+      this.updateDecorTypeSelection();
+    });
+
+    return button;
+  }
+
+  private updateDecorButtonsVisibility(): void {
+    const visible = this.mode === 'decor';
+    this.decorButtons.forEach((button) => {
+      button.setVisible(visible);
+    });
+    if (visible) {
+      this.updateDecorTypeSelection();
+    }
+  }
+
+  private updateDecorTypeSelection(): void {
+    this.decorButtons.forEach((button, decorType) => {
+      const bg = button.list[0] as Phaser.GameObjects.Graphics;
+      bg.clear();
+      
+      if (decorType === this.selectedDecorType) {
+        // Selected
+        bg.fillStyle(0xaa00aa, 1);
+        bg.fillRoundedRect(0, 0, 100, 40, 8);
+        bg.lineStyle(3, 0xff00ff, 1);
+        bg.strokeRoundedRect(0, 0, 100, 40, 8);
+      } else {
+        // Normal
+        bg.fillStyle(0x2a2a2a, 1);
+        bg.fillRoundedRect(0, 0, 100, 40, 8);
+        bg.lineStyle(2, 0xaa00aa, 0.5);
         bg.strokeRoundedRect(0, 0, 100, 40, 8);
       }
     });
@@ -336,6 +407,7 @@ export class LevelEditorScene extends Phaser.Scene {
   private setupInput(): void {
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (pointer.y < 120) return; // Ignore UI area
+      if (!this.mode) return; // No mode selected
       
       // Always use fine grid for all modes
       const gridPos = this.worldToPathGrid(pointer.x, pointer.y);
@@ -355,6 +427,9 @@ export class LevelEditorScene extends Phaser.Scene {
           this.isDrawing = true;
           this.addToCurrentPath(gridPos);
           break;
+        case 'decor':
+          this.addDecoration(gridPos);
+          break;
         case 'erase':
           this.eraseAt(gridPos);
           break;
@@ -362,11 +437,11 @@ export class LevelEditorScene extends Phaser.Scene {
     });
 
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      // Update preview for spawn/target modes
-      if (pointer.y >= 120 && (this.mode === 'spawn' || this.mode === 'target')) {
+      // Update preview for spawn/target/decor modes
+      if (pointer.y >= 120 && (this.mode === 'spawn' || this.mode === 'target' || this.mode === 'decor')) {
         this.updatePreview(pointer.x, pointer.y);
-      } else if (pointer.y < 120) {
-        // Clear preview when over UI
+      } else if (pointer.y < 120 || pointer.y < 160 && this.mode === 'decor') {
+        // Clear preview when over UI (decor buttons are at y=110)
         this.previewGraphics.clear();
       }
       
@@ -419,6 +494,44 @@ export class LevelEditorScene extends Phaser.Scene {
     }
   }
 
+  private addDecoration(pos: GridPosition): void {
+    // Add decoration at position
+    this.decorations.push({
+      type: this.selectedDecorType,
+      position: pos,
+    });
+    this.drawDecorations();
+    this.autoSave();
+  }
+
+  private drawDecorations(): void {
+    // Clear previous sprites
+    this.decorSprites.forEach(sprite => sprite.destroy());
+    this.decorSprites = [];
+
+    // Draw all decorations using DOM elements for GIF animation
+    const pathGridSize = GAME_CONFIG.PATH_GRID_SIZE;
+    const decorSize = pathGridSize * 8; // 8x8 grid cells
+    this.decorations.forEach(decor => {
+      const worldX = decor.position.x * pathGridSize + pathGridSize / 2;
+      const worldY = decor.position.y * pathGridSize + pathGridSize / 2;
+      
+      // Use DOM element for animated GIF
+      const dom = this.add.dom(worldX, worldY, 'img', {
+        width: `${decorSize}px`,
+        height: `${decorSize}px`,
+        'pointer-events': 'none',
+        transform: 'translate(-50%, -50%)', // Center the image
+      });
+      
+      const img = dom.node as HTMLImageElement;
+      img.src = `animations/${decor.type === 'tux' ? 'tux-linux-tux.gif' : decor.type === 'tenor' ? 'tenor.gif' : 'peppo-dance.gif'}`;
+      
+      dom.setDepth(2); // Above grid, below UI
+      this.decorSprites.push(dom as any);
+    });
+  }
+
   private worldToPathGrid(worldX: number, worldY: number): GridPosition {
     const pathGridSize = GAME_CONFIG.PATH_GRID_SIZE;
     return {
@@ -429,6 +542,14 @@ export class LevelEditorScene extends Phaser.Scene {
 
   private updatePreview(worldX: number, worldY: number): void {
     this.previewGraphics.clear();
+    
+    // Clear preview sprite if exists
+    if (this.previewSprite) {
+      this.previewSprite.destroy();
+      this.previewSprite = undefined;
+    }
+
+    if (!this.mode) return; // No mode selected
 
     const gridPos = this.worldToPathGrid(worldX, worldY);
     
@@ -486,6 +607,27 @@ export class LevelEditorScene extends Phaser.Scene {
         markerSize,
         markerSize
       );
+    } else if (this.mode === 'decor') {
+      // Show decor preview using DOM for animation
+      if (this.previewSprite) {
+        (this.previewSprite as Phaser.GameObjects.Image | Phaser.GameObjects.DOMElement).destroy();
+        this.previewSprite = undefined;
+      }
+      
+      const decorSize = pathGridSize * 8; // 8x8 grid cells
+      const dom = this.add.dom(posWorldX, posWorldY, 'img', {
+        width: `${decorSize}px`,
+        height: `${decorSize}px`,
+        opacity: '0.6',
+        'pointer-events': 'none',
+        transform: 'translate(-50%, -50%)', // Center the image on cursor
+      });
+      
+      const img = dom.node as HTMLImageElement;
+      img.src = `animations/${this.selectedDecorType === 'tux' ? 'tux-linux-tux.gif' : this.selectedDecorType === 'tenor' ? 'tenor.gif' : 'peppo-dance.gif'}`;
+      
+      dom.setDepth(6);
+      this.previewSprite = dom as any;
     }
   }
 
@@ -508,6 +650,8 @@ export class LevelEditorScene extends Phaser.Scene {
   }
 
   private eraseAt(pos: GridPosition): void {
+    const decorCountBefore = this.decorations.length;
+    
     // Remove spawn point
     this.spawnPoints = this.spawnPoints.filter(p => !(p.x === pos.x && p.y === pos.y));
     
@@ -519,7 +663,26 @@ export class LevelEditorScene extends Phaser.Scene {
       return !path.some(p => p.x === pos.x && p.y === pos.y);
     });
     
+    // Remove decorations if click is inside their area
+    // Decoration is 8x8 cells, check if click is within bounds
+    this.decorations = this.decorations.filter(decor => {
+      const dx = Math.abs(decor.position.x - pos.x);
+      const dy = Math.abs(decor.position.y - pos.y);
+      // Keep if click is outside the decoration area (8 cells = full size)
+      // Using 8 instead of 4 to make deletion easier
+      const shouldKeep = dx > 8 || dy > 8;
+      if (!shouldKeep) {
+        console.log(`🗑️ Removing decoration at (${decor.position.x}, ${decor.position.y}), clicked at (${pos.x}, ${pos.y}), dx=${dx}, dy=${dy}`);
+      }
+      return shouldKeep;
+    });
+    
+    if (decorCountBefore !== this.decorations.length) {
+      console.log(`✅ Removed ${decorCountBefore - this.decorations.length} decoration(s)`);
+    }
+    
     this.drawGrid();
+    this.drawDecorations();
     this.autoSave();
   }
 
@@ -528,6 +691,7 @@ export class LevelEditorScene extends Phaser.Scene {
       spawnPoints: this.spawnPoints,
       targetPoints: this.targetPoints,
       paths: this.paths,
+      decorations: this.decorations,
       gridWidth: GAME_CONFIG.PATH_GRID_COLS,
       gridHeight: GAME_CONFIG.PATH_GRID_ROWS,
     };
@@ -597,6 +761,7 @@ export class LevelEditorScene extends Phaser.Scene {
       spawnPoints: this.spawnPoints,
       targetPoints: this.targetPoints,
       paths: this.paths,
+      decorations: this.decorations,
       gridWidth: GAME_CONFIG.PATH_GRID_COLS,
       gridHeight: GAME_CONFIG.PATH_GRID_ROWS,
     };
@@ -624,7 +789,9 @@ export class LevelEditorScene extends Phaser.Scene {
     this.targetPoints = [];
     this.paths = [];
     this.currentPath = [];
+    this.decorations = [];
     this.drawGrid();
+    this.drawDecorations();
     this.autoSave();
     this.showNotification('🗑️ Level cleared!');
   }
@@ -658,8 +825,10 @@ export class LevelEditorScene extends Phaser.Scene {
         this.spawnPoints = data.spawnPoints || [];
         this.targetPoints = data.targetPoints || [];
         this.paths = data.paths || [];
+        this.decorations = data.decorations || [];
         console.log('✅ Loaded saved level data');
         this.showNotification('✅ Loaded previous session');
+        this.drawDecorations(); // Draw loaded decorations
       } catch (e) {
         console.error('❌ Failed to load saved level:', e);
       }
@@ -671,6 +840,7 @@ export class LevelEditorScene extends Phaser.Scene {
       spawnPoints: this.spawnPoints,
       targetPoints: this.targetPoints,
       paths: this.paths,
+      decorations: this.decorations,
       gridWidth: GAME_CONFIG.PATH_GRID_COLS,
       gridHeight: GAME_CONFIG.PATH_GRID_ROWS,
     };

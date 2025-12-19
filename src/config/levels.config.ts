@@ -4,12 +4,15 @@
 
 import type { LevelData } from '../types/phaser.types';
 
+import type { DecorType } from '../types/phaser.types';
+
 // Add your custom levels here
 // Copy JSON from Level Editor and paste it here
 export const CUSTOM_LEVELS: Record<number, {
   spawnPoints: Array<{ x: number; y: number }>;
   targetPoints: Array<{ x: number; y: number }>;
   paths: Array<Array<{ x: number; y: number }>>;
+  decorations?: Array<{ type: DecorType; position: { x: number; y: number } }>;
 }> = {
   // Example: Uncomment and modify this, or add your own from editor:
   /*
@@ -58,6 +61,7 @@ export function createLevelFromConfig(
     spawnPoints: config.spawnPoints,
     targetPoints: config.targetPoints,
     paths: config.paths,
+    decorations: config.decorations || [],
     buildableArea: [],
     waves: [
       {

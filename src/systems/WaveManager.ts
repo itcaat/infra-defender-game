@@ -3,7 +3,6 @@
  */
 
 import type { WaveConfig, EnemyType } from '../types/phaser.types';
-import { GAME_CONFIG } from '../config/game.config';
 
 export class WaveManager {
   private waves: WaveConfig[];

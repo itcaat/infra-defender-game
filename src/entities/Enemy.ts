@@ -9,7 +9,7 @@ import { ENEMY_CONFIGS, ENEMY_DESCRIPTIONS } from '../config/enemies.config';
 
 export class Enemy extends Phaser.GameObjects.Container {
   private enemyData: EnemyData;
-  private enemySprite: Phaser.GameObjects.Rectangle;
+  private enemySprite: Phaser.GameObjects.Arc;
   private healthBar: Phaser.GameObjects.Graphics;
   private path: GridPosition[];
   private currentPathIndex: number = 0;
@@ -94,7 +94,7 @@ export class Enemy extends Phaser.GameObjects.Container {
   /**
    * Update enemy logic (called every frame)
    */
-  update(time: number, delta: number): void {
+  update(_time: number, delta: number): void {
     // Skip if already reached target
     if (this.hasReachedTarget) return;
     

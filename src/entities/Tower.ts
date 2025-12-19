@@ -130,7 +130,7 @@ export class Tower extends Phaser.GameObjects.Container {
   /**
    * Update tower logic (called every frame)
    */
-  update(time: number, delta: number, enemies: any[]): void {
+  update(time: number, _delta: number, enemies: any[]): void {
     // Check if can attack
     const attackCooldown = 1000 / this.towerData.attackSpeed;
     if (time - this.lastAttackTime >= attackCooldown) {

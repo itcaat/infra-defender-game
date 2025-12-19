@@ -81,10 +81,25 @@ After running `npm run dev`, the game will be available at:
 - 🔄 Wave management system
 - 🔄 Combat mechanics (towers attacking enemies)
 
+## 🚢 Deployment
+
+This is a static web application that can be deployed to any static hosting service.
+
+### GitHub Pages (Automatic)
+Push to `main` branch to automatically deploy via GitHub Actions.
+See `DEPLOYMENT.md` for detailed setup instructions.
+
+### Other Platforms
+- **Netlify**: Connect repo, build command `npm run build`, publish directory `dist`
+- **Vercel**: Import repo, framework preset "Vite"
+- **Cloudflare Pages**: Connect repo, build command `npm run build`, output `dist`
+
 ## 📝 Documentation
 
+- **Deployment Guide**: See `DEPLOYMENT.md` for GitHub Pages and other hosting options
 - **Game Design**: See `.cursor/scratchpad.md` for detailed GDD and development roadmap
 - **Supabase Setup**: See `SUPABASE_SETUP.md` for database configuration
+- **Level Editor**: See `LEVEL_EDITOR.md` for creating custom levels
 - **Telegram Testing**: Open `telegram-test.html` for local testing environment
 
 ## 🤝 Contributing

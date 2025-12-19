@@ -25,6 +25,8 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('icon_prometheus', 'icons/prometheus.svg');
     this.load.image('icon_clickhouse', 'icons/clickhouse.svg');
 
+    // Note: Decorative animations (GIFs) are loaded via DOM elements for animation support
+
     // Create loading bar
     this.createLoadingBar();
 

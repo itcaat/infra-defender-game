@@ -3,7 +3,7 @@
  */
 
 import Phaser from 'phaser';
-import { SCENES, COLORS } from '../config/game.config';
+import { SCENES } from '../config/game.config';
 import { gameManager } from '../game/GameManager';
 import { telegram } from '../telegram/telegram';
 

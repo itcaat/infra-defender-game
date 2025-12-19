@@ -129,10 +129,11 @@ export class Enemy extends Phaser.GameObjects.Container {
     const currentPoint = this.path[this.currentPathIndex];
     const nextPoint = this.path[this.currentPathIndex + 1];
 
-    const startX = currentPoint.x * GAME_CONFIG.GRID_SIZE + GAME_CONFIG.GRID_SIZE / 2;
-    const startY = currentPoint.y * GAME_CONFIG.GRID_SIZE + GAME_CONFIG.GRID_SIZE / 2;
-    const endX = nextPoint.x * GAME_CONFIG.GRID_SIZE + GAME_CONFIG.GRID_SIZE / 2;
-    const endY = nextPoint.y * GAME_CONFIG.GRID_SIZE + GAME_CONFIG.GRID_SIZE / 2;
+    // Use PATH_GRID_SIZE for fine path movement
+    const startX = currentPoint.x * GAME_CONFIG.PATH_GRID_SIZE + GAME_CONFIG.PATH_GRID_SIZE / 2;
+    const startY = currentPoint.y * GAME_CONFIG.PATH_GRID_SIZE + GAME_CONFIG.PATH_GRID_SIZE / 2;
+    const endX = nextPoint.x * GAME_CONFIG.PATH_GRID_SIZE + GAME_CONFIG.PATH_GRID_SIZE / 2;
+    const endY = nextPoint.y * GAME_CONFIG.PATH_GRID_SIZE + GAME_CONFIG.PATH_GRID_SIZE / 2;
 
     const distance = Phaser.Math.Distance.Between(startX, startY, endX, endY);
     

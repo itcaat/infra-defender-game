@@ -12,6 +12,11 @@ export const GAME_CONFIG = {
   GRID_COLS: 20, // 1280 / 64
   GRID_ROWS: 11, // 720 / 64 (with UI space)
   
+  // Path Grid (finer for smooth paths)
+  PATH_GRID_SIZE: 8, // 64/8 = 8 subdivisions per cell
+  PATH_GRID_COLS: 160, // 20 * 8
+  PATH_GRID_ROWS: 88, // 11 * 8
+  
   // Game Balance
   STARTING_MONEY: 500,
   STARTING_ERROR_BUDGET: 100,

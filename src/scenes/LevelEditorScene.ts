@@ -11,6 +11,7 @@ type EditorMode = 'spawn' | 'target' | 'path' | 'erase';
 
 export class LevelEditorScene extends Phaser.Scene {
   private gridGraphics!: Phaser.GameObjects.Graphics;
+  private previewGraphics!: Phaser.GameObjects.Graphics;
   private gridSystem!: GridSystem;
   private mode: EditorMode = 'spawn';
   private spawnPoints: GridPosition[] = [];
@@ -20,6 +21,7 @@ export class LevelEditorScene extends Phaser.Scene {
   private isDrawing: boolean = false;
   private modeButtons: Map<EditorMode, Phaser.GameObjects.Container> = new Map();
   private labels: Phaser.GameObjects.Text[] = [];
+  private useFinePath: boolean = true; // Use fine grid for paths
 
   constructor() {
     super({ key: SCENES.LEVEL_EDITOR });
@@ -50,6 +52,10 @@ export class LevelEditorScene extends Phaser.Scene {
     this.gridGraphics.setDepth(1);
     this.drawGrid();
 
+    // Create preview graphics
+    this.previewGraphics = this.add.graphics();
+    this.previewGraphics.setDepth(5);
+
     // Create UI
     this.createUI();
 
@@ -69,9 +75,21 @@ export class LevelEditorScene extends Phaser.Scene {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
     const gridSize = GAME_CONFIG.GRID_SIZE;
+    const pathGridSize = GAME_CONFIG.PATH_GRID_SIZE;
 
-    // Draw grid lines
-    this.gridGraphics.lineStyle(1, 0x00ff00, 0.3);
+    // Draw fine grid (always visible, subtle)
+    this.gridGraphics.lineStyle(1, 0xffaa00, 0.15);
+    for (let x = 0; x <= GAME_CONFIG.PATH_GRID_COLS; x++) {
+      const worldX = x * pathGridSize;
+      this.gridGraphics.lineBetween(worldX, 0, worldX, height);
+    }
+    for (let y = 0; y <= GAME_CONFIG.PATH_GRID_ROWS; y++) {
+      const worldY = y * pathGridSize;
+      this.gridGraphics.lineBetween(0, worldY, width, worldY);
+    }
+
+    // Draw main grid lines (bold)
+    this.gridGraphics.lineStyle(2, 0x00ff00, 0.5);
     for (let x = 0; x <= GAME_CONFIG.GRID_COLS; x++) {
       const worldX = x * gridSize;
       this.gridGraphics.lineBetween(worldX, 0, worldX, height);
@@ -81,20 +99,24 @@ export class LevelEditorScene extends Phaser.Scene {
       this.gridGraphics.lineBetween(0, worldY, width, worldY);
     }
 
-    // Draw spawn points (green)
+    // Draw spawn points (green) - using fine grid
     this.spawnPoints.forEach(pos => {
-      const worldPos = this.gridSystem.gridToWorld(pos.x, pos.y);
-      this.gridGraphics.fillStyle(0x00ff00, 0.6);
+      const worldX = pos.x * pathGridSize + pathGridSize / 2;
+      const worldY = pos.y * pathGridSize + pathGridSize / 2;
+      
+      // Draw a larger marker (4x4 fine grid cells)
+      const markerSize = pathGridSize * 4;
+      this.gridGraphics.fillStyle(0x00ff00, 0.7);
       this.gridGraphics.fillRect(
-        worldPos.x - gridSize / 2,
-        worldPos.y - gridSize / 2,
-        gridSize,
-        gridSize
+        worldX - markerSize / 2,
+        worldY - markerSize / 2,
+        markerSize,
+        markerSize
       );
       
       // Draw "S" label
-      const label = this.add.text(worldPos.x, worldPos.y, 'S', {
-        font: 'bold 24px Arial',
+      const label = this.add.text(worldX, worldY, 'S', {
+        font: 'bold 20px Arial',
         color: '#ffffff',
         stroke: '#000000',
         strokeThickness: 3,
@@ -104,20 +126,24 @@ export class LevelEditorScene extends Phaser.Scene {
       this.labels.push(label);
     });
 
-    // Draw target points (red)
+    // Draw target points (red) - using fine grid
     this.targetPoints.forEach(pos => {
-      const worldPos = this.gridSystem.gridToWorld(pos.x, pos.y);
-      this.gridGraphics.fillStyle(0xff0000, 0.6);
+      const worldX = pos.x * pathGridSize + pathGridSize / 2;
+      const worldY = pos.y * pathGridSize + pathGridSize / 2;
+      
+      // Draw a larger marker (4x4 fine grid cells)
+      const markerSize = pathGridSize * 4;
+      this.gridGraphics.fillStyle(0xff0000, 0.7);
       this.gridGraphics.fillRect(
-        worldPos.x - gridSize / 2,
-        worldPos.y - gridSize / 2,
-        gridSize,
-        gridSize
+        worldX - markerSize / 2,
+        worldY - markerSize / 2,
+        markerSize,
+        markerSize
       );
       
       // Draw "T" label
-      const label = this.add.text(worldPos.x, worldPos.y, 'T', {
-        font: 'bold 24px Arial',
+      const label = this.add.text(worldX, worldY, 'T', {
+        font: 'bold 20px Arial',
         color: '#ffffff',
         stroke: '#000000',
         strokeThickness: 3,
@@ -127,22 +153,24 @@ export class LevelEditorScene extends Phaser.Scene {
       this.labels.push(label);
     });
 
-    // Draw paths (yellow)
+    // Draw paths (yellow) - using fine grid
     this.paths.forEach(path => {
       path.forEach((pos, index) => {
-        const worldPos = this.gridSystem.gridToWorld(pos.x, pos.y);
-        this.gridGraphics.fillStyle(0xffaa00, 0.4);
+        const worldX = pos.x * pathGridSize + pathGridSize / 2;
+        const worldY = pos.y * pathGridSize + pathGridSize / 2;
+        
+        this.gridGraphics.fillStyle(0xffaa00, 0.6);
         this.gridGraphics.fillRect(
-          worldPos.x - gridSize / 2,
-          worldPos.y - gridSize / 2,
-          gridSize,
-          gridSize
+          worldX - pathGridSize / 2,
+          worldY - pathGridSize / 2,
+          pathGridSize,
+          pathGridSize
         );
 
-        // Draw path number
+        // Draw path number at start
         if (index === 0) {
-          const label = this.add.text(worldPos.x, worldPos.y, `${this.paths.indexOf(path) + 1}`, {
-            font: 'bold 16px Arial',
+          const label = this.add.text(worldX, worldY, `${this.paths.indexOf(path) + 1}`, {
+            font: 'bold 12px Arial',
             color: '#ffffff',
             stroke: '#000000',
             strokeThickness: 2,
@@ -157,13 +185,15 @@ export class LevelEditorScene extends Phaser.Scene {
     // Draw current path being drawn
     if (this.currentPath.length > 0) {
       this.currentPath.forEach(pos => {
-        const worldPos = this.gridSystem.gridToWorld(pos.x, pos.y);
-        this.gridGraphics.fillStyle(0xffff00, 0.6);
+        const worldX = pos.x * pathGridSize + pathGridSize / 2;
+        const worldY = pos.y * pathGridSize + pathGridSize / 2;
+        
+        this.gridGraphics.fillStyle(0xffff00, 0.8);
         this.gridGraphics.fillRect(
-          worldPos.x - gridSize / 2,
-          worldPos.y - gridSize / 2,
-          gridSize,
-          gridSize
+          worldX - pathGridSize / 2,
+          worldY - pathGridSize / 2,
+          pathGridSize,
+          pathGridSize
         );
       });
     }
@@ -207,7 +237,7 @@ export class LevelEditorScene extends Phaser.Scene {
 
     // Instructions
     const instructions = this.add.text(width / 2, this.cameras.main.height - 30, 
-      'Paths start at spawn point and end at target. Hold and drag to draw paths.', {
+      'All elements use fine grid (8x8px). Hold and drag in Path mode to draw smooth paths.', {
       font: '14px Arial',
       color: '#ffffff',
       backgroundColor: '#000000',
@@ -242,6 +272,9 @@ export class LevelEditorScene extends Phaser.Scene {
     hitArea.on('pointerdown', () => {
       this.mode = mode;
       this.updateModeSelection();
+      
+      // Clear preview when switching modes
+      this.previewGraphics.clear();
       
       // If switching away from path mode, save current path
       if (mode !== 'path' && this.currentPath.length > 0) {
@@ -304,10 +337,10 @@ export class LevelEditorScene extends Phaser.Scene {
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (pointer.y < 120) return; // Ignore UI area
       
-      const gridPos = this.gridSystem.worldToGrid(pointer.x, pointer.y);
-      
-      if (gridPos.x < 0 || gridPos.x >= GAME_CONFIG.GRID_COLS ||
-          gridPos.y < 0 || gridPos.y >= GAME_CONFIG.GRID_ROWS) {
+      // Always use fine grid for all modes
+      const gridPos = this.worldToPathGrid(pointer.x, pointer.y);
+      if (gridPos.x < 0 || gridPos.x >= GAME_CONFIG.PATH_GRID_COLS ||
+          gridPos.y < 0 || gridPos.y >= GAME_CONFIG.PATH_GRID_ROWS) {
         return;
       }
 
@@ -329,11 +362,20 @@ export class LevelEditorScene extends Phaser.Scene {
     });
 
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      // Update preview for spawn/target modes
+      if (pointer.y >= 120 && (this.mode === 'spawn' || this.mode === 'target')) {
+        this.updatePreview(pointer.x, pointer.y);
+      } else if (pointer.y < 120) {
+        // Clear preview when over UI
+        this.previewGraphics.clear();
+      }
+      
+      // Handle path drawing
       if (this.isDrawing && this.mode === 'path') {
-        const gridPos = this.gridSystem.worldToGrid(pointer.x, pointer.y);
+        const gridPos = this.worldToPathGrid(pointer.x, pointer.y);
         
-        if (gridPos.x >= 0 && gridPos.x < GAME_CONFIG.GRID_COLS &&
-            gridPos.y >= 0 && gridPos.y < GAME_CONFIG.GRID_ROWS) {
+        if (gridPos.x >= 0 && gridPos.x < GAME_CONFIG.PATH_GRID_COLS &&
+            gridPos.y >= 0 && gridPos.y < GAME_CONFIG.PATH_GRID_ROWS) {
           this.addToCurrentPath(gridPos);
         }
       }
@@ -348,6 +390,11 @@ export class LevelEditorScene extends Phaser.Scene {
           this.drawGrid();
         }
       }
+    });
+
+    // Clear preview when mouse leaves the game area
+    this.input.on('pointerout', () => {
+      this.previewGraphics.clear();
     });
   }
 
@@ -369,15 +416,87 @@ export class LevelEditorScene extends Phaser.Scene {
     }
   }
 
+  private worldToPathGrid(worldX: number, worldY: number): GridPosition {
+    const pathGridSize = GAME_CONFIG.PATH_GRID_SIZE;
+    return {
+      x: Math.floor(worldX / pathGridSize),
+      y: Math.floor(worldY / pathGridSize)
+    };
+  }
+
+  private updatePreview(worldX: number, worldY: number): void {
+    this.previewGraphics.clear();
+
+    const gridPos = this.worldToPathGrid(worldX, worldY);
+    
+    // Check bounds
+    if (gridPos.x < 0 || gridPos.x >= GAME_CONFIG.PATH_GRID_COLS ||
+        gridPos.y < 0 || gridPos.y >= GAME_CONFIG.PATH_GRID_ROWS) {
+      return;
+    }
+
+    const pathGridSize = GAME_CONFIG.PATH_GRID_SIZE;
+    const posWorldX = gridPos.x * pathGridSize + pathGridSize / 2;
+    const posWorldY = gridPos.y * pathGridSize + pathGridSize / 2;
+    const markerSize = pathGridSize * 4;
+
+    // Draw preview based on mode
+    if (this.mode === 'spawn') {
+      // Check if already exists
+      const exists = this.spawnPoints.some(p => p.x === gridPos.x && p.y === gridPos.y);
+      const alpha = exists ? 0.3 : 0.5;
+      
+      this.previewGraphics.fillStyle(0x00ff00, alpha);
+      this.previewGraphics.fillRect(
+        posWorldX - markerSize / 2,
+        posWorldY - markerSize / 2,
+        markerSize,
+        markerSize
+      );
+      
+      // Border
+      this.previewGraphics.lineStyle(2, 0x00ff00, 0.8);
+      this.previewGraphics.strokeRect(
+        posWorldX - markerSize / 2,
+        posWorldY - markerSize / 2,
+        markerSize,
+        markerSize
+      );
+    } else if (this.mode === 'target') {
+      // Check if already exists
+      const exists = this.targetPoints.some(p => p.x === gridPos.x && p.y === gridPos.y);
+      const alpha = exists ? 0.3 : 0.5;
+      
+      this.previewGraphics.fillStyle(0xff0000, alpha);
+      this.previewGraphics.fillRect(
+        posWorldX - markerSize / 2,
+        posWorldY - markerSize / 2,
+        markerSize,
+        markerSize
+      );
+      
+      // Border
+      this.previewGraphics.lineStyle(2, 0xff0000, 0.8);
+      this.previewGraphics.strokeRect(
+        posWorldX - markerSize / 2,
+        posWorldY - markerSize / 2,
+        markerSize,
+        markerSize
+      );
+    }
+  }
+
   private addToCurrentPath(pos: GridPosition): void {
     // Check if already in current path
     const exists = this.currentPath.some(p => p.x === pos.x && p.y === pos.y);
     if (!exists) {
-      // Check adjacency to last point
+      // Check adjacency to last point (for fine grid, allow diagonal too)
       if (this.currentPath.length > 0) {
         const last = this.currentPath[this.currentPath.length - 1];
-        const distance = Math.abs(pos.x - last.x) + Math.abs(pos.y - last.y);
-        if (distance !== 1) return; // Must be adjacent
+        const dx = Math.abs(pos.x - last.x);
+        const dy = Math.abs(pos.y - last.y);
+        const distance = Math.max(dx, dy); // Chebyshev distance
+        if (distance > 1) return; // Must be adjacent or diagonal
       }
       
       this.currentPath.push(pos);
@@ -405,8 +524,8 @@ export class LevelEditorScene extends Phaser.Scene {
       spawnPoints: this.spawnPoints,
       targetPoints: this.targetPoints,
       paths: this.paths,
-      gridWidth: GAME_CONFIG.GRID_COLS,
-      gridHeight: GAME_CONFIG.GRID_ROWS,
+      gridWidth: GAME_CONFIG.PATH_GRID_COLS,
+      gridHeight: GAME_CONFIG.PATH_GRID_ROWS,
     };
 
     const json = JSON.stringify(levelData, null, 2);

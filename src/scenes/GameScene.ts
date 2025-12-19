@@ -7,27 +7,34 @@ import { SCENES, GAME_CONFIG, COLORS } from '../config/game.config';
 import { gameManager } from '../game/GameManager';
 import { GridSystem } from '../systems/GridSystem';
 import { WaveManager } from '../systems/WaveManager';
+import { AbilitySystem } from '../systems/AbilitySystem';
+import type { AbilityType } from '../systems/AbilitySystem';
 import { TowerMenu } from '../ui/TowerMenu';
 import { TowerInfoPanel } from '../ui/TowerInfoPanel';
+import { AbilityBar } from '../ui/AbilityBar';
 import { Tower } from '../entities/Tower';
 import { Enemy } from '../entities/Enemy';
 import { Projectile } from '../entities/Projectile';
 import type { LevelData, GridPosition, TowerType, EnemyType } from '../types/phaser.types';
-import { TOWER_CONFIGS } from '../config/towers.config';
+import { TOWER_CONFIGS, TOWER_DESCRIPTIONS } from '../config/towers.config';
 
 export class GameScene extends Phaser.Scene {
   private gridGraphics!: Phaser.GameObjects.Graphics;
   private gridSystem!: GridSystem;
   private waveManager!: WaveManager;
+  private abilitySystem!: AbilitySystem;
   private towerMenu!: TowerMenu;
   private towerInfoPanel!: TowerInfoPanel;
+  private abilityBar!: AbilityBar;
   private selectedTowerType: TowerType | null = null;
   private previewGraphics!: Phaser.GameObjects.Graphics;
+  private previewSprite?: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics;
   private towers: Tower[] = [];
   private enemies: Enemy[] = [];
   private projectiles: Projectile[] = [];
   private startWaveButton!: Phaser.GameObjects.Container;
   private level!: LevelData;
+  private activeAbilities: Set<AbilityType> = new Set();
 
   constructor() {
     super({ key: SCENES.GAME });
@@ -44,10 +51,13 @@ export class GameScene extends Phaser.Scene {
 
     // Initialize grid system
     this.gridSystem = new GridSystem();
-    this.gridSystem.setPath(this.level.paths[0]);
+    this.gridSystem.setPath(this.level.paths); // Pass all paths
 
     // Initialize wave manager
     this.waveManager = new WaveManager(this.level.waves);
+
+    // Initialize ability system
+    this.abilitySystem = new AbilitySystem();
 
     // Create grid
     this.createGrid();
@@ -70,6 +80,13 @@ export class GameScene extends Phaser.Scene {
       this,
       (tower) => this.upgradeTower(tower),
       (tower) => this.sellTower(tower)
+    );
+
+    // Create ability bar
+    this.abilityBar = new AbilityBar(
+      this,
+      this.abilitySystem.getAllAbilities(),
+      (type) => this.useAbility(type)
     );
 
     // Create start wave button
@@ -118,45 +135,19 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createGrid(): void {
-    this.gridGraphics = this.add.graphics();
+    // Add background image
+    const bg = this.add.image(0, 0, 'game_background');
+    bg.setOrigin(0, 0);
     
-    if (GAME_CONFIG.SHOW_GRID) {
-      this.drawGrid();
-    }
-  }
+    // Scale to fit screen
+    const scaleX = this.cameras.main.width / bg.width;
+    const scaleY = this.cameras.main.height / bg.height;
+    const scale = Math.max(scaleX, scaleY);
+    bg.setScale(scale);
+    bg.setDepth(0);
 
-  private drawGrid(): void {
-    this.gridGraphics.clear();
-    this.gridGraphics.lineStyle(1, COLORS.GRID_LINE, 0.3);
-
-    const width = this.cameras.main.width;
-    const height = this.cameras.main.height;
-    const gridSize = GAME_CONFIG.GRID_SIZE;
-
-    // Vertical lines
-    for (let x = 0; x <= width; x += gridSize) {
-      this.gridGraphics.lineBetween(x, 0, x, height);
-    }
-
-    // Horizontal lines
-    for (let y = 0; y <= height; y += gridSize) {
-      this.gridGraphics.lineBetween(0, y, width, y);
-    }
-
-    // Draw path cells
-    const level = gameManager.getLevel();
-    if (level) {
-      this.gridGraphics.fillStyle(COLORS.PATH, 0.3);
-      level.paths[0].forEach(pos => {
-        const worldPos = this.gridSystem.gridToWorld(pos.x, pos.y);
-        this.gridGraphics.fillRect(
-          worldPos.x - gridSize / 2,
-          worldPos.y - gridSize / 2,
-          gridSize,
-          gridSize
-        );
-      });
-    }
+    this.gridGraphics = this.add.graphics();
+    this.gridGraphics.setDepth(1);
   }
 
   private setupInput(): void {
@@ -226,25 +217,56 @@ export class GameScene extends Phaser.Scene {
     // Mark cell as occupied
     this.gridSystem.occupyCell(gridX, gridY);
 
-    // Placement animation
-    tower.setScale(0);
-    tower.setAlpha(0);
-    this.tweens.add({
-      targets: tower,
-      scale: 1,
-      alpha: 1,
-      duration: 300,
-      ease: 'Back.easeOut',
-    });
+    // Note: Tower already has spawn animation, remove duplicate
+    // Flash effect on grid - expanding rings
+    for (let i = 0; i < 3; i++) {
+      const ring = this.add.circle(worldPos.x, worldPos.y, 20, 0x00ff00, 0);
+      ring.setStrokeStyle(4, 0x00ff00);
+      this.tweens.add({
+        targets: ring,
+        radius: 60,
+        alpha: 0,
+        duration: 500 + i * 100,
+        delay: i * 50,
+        ease: 'Quad.easeOut',
+        onComplete: () => ring.destroy(),
+      });
+    }
 
-    // Flash effect on grid
-    const flash = this.add.circle(worldPos.x, worldPos.y, 40, 0x00ff00, 0.5);
+    // Placement particles
+    for (let i = 0; i < 8; i++) {
+      const angle = (Math.PI * 2 * i) / 8;
+      const particle = this.add.circle(worldPos.x, worldPos.y, 3, 0x00ff00);
+      this.tweens.add({
+        targets: particle,
+        x: worldPos.x + Math.cos(angle) * 30,
+        y: worldPos.y + Math.sin(angle) * 30,
+        alpha: 0,
+        duration: 400,
+        ease: 'Quad.easeOut',
+        onComplete: () => particle.destroy(),
+      });
+    }
+
+    // Camera shake for feedback
+    this.cameras.main.shake(80, 0.003);
+
+    // Show floating money text
+    const cost = TOWER_CONFIGS[towerType].cost;
+    const moneyText = this.add.text(worldPos.x, worldPos.y - 40, `-$${cost}`, {
+      font: 'bold 20px Arial',
+      color: '#ff9900',
+      stroke: '#000000',
+      strokeThickness: 4,
+    });
+    moneyText.setOrigin(0.5);
     this.tweens.add({
-      targets: flash,
-      scale: 2,
+      targets: moneyText,
+      y: worldPos.y - 80,
       alpha: 0,
-      duration: 400,
-      onComplete: () => flash.destroy(),
+      duration: 1000,
+      ease: 'Quad.easeOut',
+      onComplete: () => moneyText.destroy(),
     });
 
     this.showHint(`✅ ${towerType} placed!`);
@@ -271,6 +293,30 @@ export class GameScene extends Phaser.Scene {
       gridSize
     );
 
+    // Clear old preview sprite
+    if (this.previewSprite) {
+      this.previewSprite.destroy();
+    }
+
+    // Draw tower icon preview
+    const desc = TOWER_DESCRIPTIONS[this.selectedTowerType];
+    const iconKey = `icon_${this.selectedTowerType}`;
+    
+    if (this.textures.exists(iconKey)) {
+      // Use icon image
+      this.previewSprite = this.add.image(worldPos.x, worldPos.y, iconKey);
+      this.previewSprite.setDisplaySize(32, 32);
+      this.previewSprite.setAlpha(isValid ? 0.8 : 0.5);
+      this.previewSprite.setDepth(50);
+    } else {
+      // Fallback to colored circle with letter
+      const graphics = this.add.graphics();
+      graphics.fillStyle(parseInt(desc.iconColor?.replace('#', '0x') || '0x00ff00', 16), isValid ? 0.8 : 0.5);
+      graphics.fillCircle(worldPos.x, worldPos.y, 16);
+      graphics.setDepth(50);
+      this.previewSprite = graphics as any;
+    }
+
     // Draw range preview if valid
     if (isValid) {
       const towerConfig = TOWER_CONFIGS[this.selectedTowerType];
@@ -290,6 +336,10 @@ export class GameScene extends Phaser.Scene {
     } else {
       console.log('❌ Tower selection cancelled');
       this.previewGraphics.clear();
+      if (this.previewSprite) {
+        this.previewSprite.destroy();
+        this.previewSprite = undefined;
+      }
     }
   }
 
@@ -297,22 +347,36 @@ export class GameScene extends Phaser.Scene {
     const centerX = this.cameras.main.width / 2;
     const y = 100;
 
-    const hint = this.add.text(centerX, y, message, {
+    // Create hint with better styling
+    const hint = this.add.text(centerX, y - 30, message, {
       font: 'bold 18px Arial',
       color: '#ffff00',
-      backgroundColor: '#000000',
-      padding: { x: 15, y: 8 },
+      stroke: '#000000',
+      strokeThickness: 4,
+      backgroundColor: '#000000cc',
+      padding: { x: 20, y: 10 },
     });
     hint.setOrigin(0.5);
     hint.setDepth(200);
+    hint.setAlpha(0);
 
-    // Fade out after 2 seconds
+    // Slide down and fade in
+    this.tweens.add({
+      targets: hint,
+      y: y,
+      alpha: 1,
+      duration: 300,
+      ease: 'Back.easeOut',
+    });
+
+    // Fade out and slide up after 2.5 seconds
     this.tweens.add({
       targets: hint,
       alpha: 0,
       y: y - 20,
-      duration: 2000,
-      delay: 1000,
+      duration: 400,
+      delay: 2500,
+      ease: 'Quad.easeIn',
       onComplete: () => hint.destroy()
     });
   }
@@ -346,8 +410,8 @@ export class GameScene extends Phaser.Scene {
       gameManager.damageErrorBudget(enemyData.errorBudgetDamage);
       this.waveManager.onEnemyReachedEnd();
       
-      // Remove enemy from array
-      this.enemies = this.enemies.filter(e => e.getData().health > 0);
+      // Remove the specific enemy that reached the end (it's already destroyed)
+      this.enemies = this.enemies.filter(e => e.active);
     });
 
     this.events.on('enemy:killed', (enemyData: any) => {
@@ -355,8 +419,29 @@ export class GameScene extends Phaser.Scene {
       gameManager.addScore(enemyData.reward * 10);
       this.waveManager.onEnemyKilled();
       
-      // Remove enemy from array
-      this.enemies = this.enemies.filter(e => e.getData().health > 0);
+      // Remove enemy from array - find the dead enemy and show reward text
+      const deadEnemy = this.enemies.find(e => e.active && e.getData().health <= 0);
+      if (deadEnemy) {
+        // Show floating reward text
+        const rewardText = this.add.text(deadEnemy.x, deadEnemy.y - 20, `+$${enemyData.reward}`, {
+          font: 'bold 18px Arial',
+          color: '#00ff00',
+          stroke: '#000000',
+          strokeThickness: 4,
+        });
+        rewardText.setOrigin(0.5);
+        this.tweens.add({
+          targets: rewardText,
+          y: deadEnemy.y - 60,
+          alpha: 0,
+          duration: 1000,
+          ease: 'Quad.easeOut',
+          onComplete: () => rewardText.destroy(),
+        });
+      }
+      
+      // Remove only dead/inactive enemies
+      this.enemies = this.enemies.filter(e => e.active && e.getData().health > 0);
     });
 
     // Listen to tower attack events
@@ -413,6 +498,119 @@ export class GameScene extends Phaser.Scene {
     console.log(`💰 Sold tower for ${sellValue}`);
   }
 
+  private useAbility(type: AbilityType): void {
+    const ability = this.abilitySystem.getAbility(type);
+    if (!ability) return;
+
+    const currentTime = this.time.now;
+
+    // Check cooldown
+    if (!this.abilitySystem.canUse(type, currentTime)) {
+      const remaining = Math.ceil(this.abilitySystem.getCooldownRemaining(type, currentTime) / 1000);
+      this.showHint(`⏱️ Cooldown: ${remaining}s remaining`);
+      return;
+    }
+
+    // Check cost
+    if (!gameManager.spendMoney(ability.cost)) {
+      this.showHint(`❌ Not enough money! Need 💰${ability.cost}`);
+      return;
+    }
+
+    // Use ability
+    this.abilitySystem.use(type, currentTime);
+    this.applyAbility(type, ability.duration);
+    
+    this.showHint(`✨ ${ability.name} activated!`);
+  }
+
+  private applyAbility(type: AbilityType, duration?: number): void {
+    switch (type) {
+      case 'scale_up':
+        this.activeAbilities.add(type);
+        console.log('⚡ Scale Up: All towers attack speed x2');
+        
+        // Visual effect on all towers - glow effect
+        this.towers.forEach(tower => {
+          // Add glow circle around tower
+          const glow = this.add.circle(tower.x, tower.y, 30, 0x00ff00, 0.5);
+          this.tweens.add({
+            targets: glow,
+            alpha: 0,
+            radius: 50,
+            duration: 300,
+            onComplete: () => glow.destroy(),
+          });
+        });
+
+        if (duration) {
+          this.time.delayedCall(duration, () => {
+            this.activeAbilities.delete(type);
+            console.log('⚡ Scale Up ended');
+          });
+        }
+        break;
+
+      case 'emergency_cache':
+        this.activeAbilities.add(type);
+        console.log('🐌 Emergency Cache: All enemies slowed 50%');
+        
+        // Visual effect on all enemies
+        this.enemies.forEach(enemy => {
+          this.tweens.add({
+            targets: enemy,
+            alpha: 0.6,
+            duration: 200,
+          });
+        });
+
+        if (duration) {
+          this.time.delayedCall(duration, () => {
+            this.activeAbilities.delete(type);
+            this.enemies.forEach(enemy => {
+              this.tweens.add({
+                targets: enemy,
+                alpha: 1,
+                duration: 200,
+              });
+            });
+            console.log('🐌 Emergency Cache ended');
+          });
+        }
+        break;
+
+      case 'silence_alerts':
+        // Find weakest enemy
+        let weakestEnemy: Enemy | null = null;
+        let lowestHealth = Infinity;
+        
+        this.enemies.forEach(enemy => {
+          const health = enemy.getData().health;
+          if (health > 0 && health < lowestHealth) {
+            lowestHealth = health;
+            weakestEnemy = enemy;
+          }
+        });
+
+        if (weakestEnemy) {
+          console.log('💀 Silence Alerts: Killed weakest enemy');
+          weakestEnemy.takeDamage(9999);
+          
+          // Extra visual effect - expanding circle
+          const flash = this.add.circle(weakestEnemy.x, weakestEnemy.y, 60, 0xff0000, 0);
+          flash.setStrokeStyle(4, 0xff0000, 0.8);
+          this.tweens.add({
+            targets: flash,
+            radius: 100,
+            alpha: 0,
+            duration: 500,
+            onComplete: () => flash.destroy(),
+          });
+        }
+        break;
+    }
+  }
+
   private onGameOver(): void {
     console.log('💀 Game Over! Score:', gameManager.getState().score);
     this.scene.stop(SCENES.UI);
@@ -461,19 +659,68 @@ export class GameScene extends Phaser.Scene {
     if (this.waveManager.startNextWave()) {
       gameManager.startNextWave();
       this.startWaveButton.setVisible(false);
+      
+      // Wave start visual effects
+      const centerX = this.cameras.main.width / 2;
+      const centerY = this.cameras.main.height / 2;
+      
+      // Wave announcement
+      const waveNum = gameManager.getState().currentWave;
+      const announcement = this.add.text(centerX, centerY, `WAVE ${waveNum}`, {
+        font: 'bold 72px Arial',
+        color: '#ff0000',
+        stroke: '#000000',
+        strokeThickness: 8,
+      });
+      announcement.setOrigin(0.5);
+      announcement.setDepth(300);
+      announcement.setAlpha(0);
+      
+      // Animate announcement - fade in/out only
+      this.tweens.add({
+        targets: announcement,
+        alpha: 1,
+        duration: 300,
+        ease: 'Quad.easeOut',
+      });
+      
+      this.tweens.add({
+        targets: announcement,
+        alpha: 0,
+        duration: 500,
+        delay: 1500,
+        onComplete: () => announcement.destroy(),
+      });
+      
+      // Screen flash
+      const flash = this.add.rectangle(0, 0, this.cameras.main.width, this.cameras.main.height, 0xff0000, 0.3);
+      flash.setOrigin(0, 0);
+      flash.setDepth(299);
+      this.tweens.add({
+        targets: flash,
+        alpha: 0,
+        duration: 300,
+        onComplete: () => flash.destroy(),
+      });
+      
+      // Camera shake
+      this.cameras.main.shake(200, 0.005);
     } else {
       console.log('✅ All waves completed!');
     }
   }
 
   private spawnEnemy(type: EnemyType): void {
-    const spawnPoint = this.level.spawnPoints[0];
+    // Randomly choose a spawn point and its corresponding path
+    const pathIndex = Math.floor(Math.random() * this.level.spawnPoints.length);
+    const spawnPoint = this.level.spawnPoints[pathIndex];
+    const path = this.level.paths[pathIndex];
     const worldPos = this.gridSystem.gridToWorld(spawnPoint.x, spawnPoint.y);
     
-    const enemy = new Enemy(this, worldPos.x, worldPos.y, type, this.level.paths[0]);
+    const enemy = new Enemy(this, worldPos.x, worldPos.y, type, path);
     this.enemies.push(enemy);
 
-    console.log(`👾 Spawned ${type}`);
+    console.log(`👾 Spawned ${type} from spawn point ${pathIndex + 1}`);
   }
 
   private spawnProjectile(tower: Tower, target: Enemy, damage: number): void {
@@ -482,11 +729,36 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
-    // Update all towers (pass enemies for targeting)
-    this.towers.forEach(tower => tower.update(time, delta, this.enemies));
+    // Filter active enemies first
+    this.enemies = this.enemies.filter(e => e.active);
+    
+    // Update all towers (pass enemies for targeting, with ability buffs)
+    const attackSpeedMultiplier = this.activeAbilities.has('scale_up') ? 2 : 1;
+    this.towers.forEach(tower => {
+      // Temporarily boost attack speed if Scale Up is active
+      if (attackSpeedMultiplier > 1) {
+        const originalSpeed = tower.getData().attackSpeed;
+        // This is a hack, better would be to pass multiplier to update
+      }
+      tower.update(time, delta, this.enemies);
+    });
 
-    // Update all enemies
-    this.enemies.forEach(enemy => enemy.update(time, delta));
+    // Update all enemies (with ability slow)
+    const enemySlowMultiplier = this.activeAbilities.has('emergency_cache') ? 0.5 : 1;
+    
+    this.enemies.forEach(enemy => {
+      // Skip if enemy became inactive during this frame
+      if (!enemy.active) return;
+      
+      // Apply slow if Emergency Cache is active
+      if (enemySlowMultiplier < 1) {
+        const originalSpeed = enemy.getData().speed;
+        const slowedDelta = delta * enemySlowMultiplier;
+        enemy.update(time, slowedDelta);
+      } else {
+        enemy.update(time, delta);
+      }
+    });
 
     // Update all projectiles
     this.projectiles = this.projectiles.filter(projectile => {
@@ -495,6 +767,14 @@ export class GameScene extends Phaser.Scene {
 
     // Update wave manager
     this.waveManager.update(delta, (type) => this.spawnEnemy(type));
+
+    // Update ability cooldowns display
+    const cooldowns = new Map<AbilityType, number>();
+    this.abilitySystem.getAllAbilities().forEach(ability => {
+      const remaining = this.abilitySystem.getCooldownRemaining(ability.type, time);
+      cooldowns.set(ability.type, remaining);
+    });
+    this.abilityBar.updateCooldowns(cooldowns);
 
     // Check if wave completed
     if (!this.waveManager.isActive() && this.enemies.length === 0) {
@@ -506,6 +786,36 @@ export class GameScene extends Phaser.Scene {
         if (reward > 0) {
           gameManager.addMoney(reward);
           gameManager.completeWave();
+          
+          // Wave complete celebration
+          const centerX = this.cameras.main.width / 2;
+          const centerY = this.cameras.main.height / 2;
+          
+          const completeText = this.add.text(centerX, centerY, `WAVE COMPLETE!\n+$${reward}`, {
+            font: 'bold 48px Arial',
+            color: '#00ff00',
+            stroke: '#000000',
+            strokeThickness: 6,
+            align: 'center',
+          });
+          completeText.setOrigin(0.5);
+          completeText.setDepth(300);
+          completeText.setAlpha(0);
+          
+          this.tweens.add({
+            targets: completeText,
+            alpha: 1,
+            duration: 400,
+            ease: 'Quad.easeOut',
+          });
+          
+          this.tweens.add({
+            targets: completeText,
+            alpha: 0,
+            duration: 400,
+            delay: 1500,
+            onComplete: () => completeText.destroy(),
+          });
         }
       } else {
         // All waves completed - victory!
@@ -515,42 +825,126 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createMockLevel(): LevelData {
+    // Datacenter is in the center at approximately (10, 5)
+    const datacenterPos = { x: 10, y: 5 };
+    
     return {
       id: 1,
-      name: 'Tutorial Level',
-      description: 'Learn the basics',
+      name: 'Infrastructure Defense',
+      description: 'Defend the datacenter from all sides!',
       gridWidth: GAME_CONFIG.GRID_COLS,
       gridHeight: GAME_CONFIG.GRID_ROWS,
-      spawnPoints: [{ x: 0, y: 5 }],
-      targetPoints: [{ x: 19, y: 5 }],
+      // Multiple spawn points from different directions
+      spawnPoints: [
+        { x: 0, y: 2 },   // Left
+        { x: 19, y: 2 },  // Right
+        { x: 10, y: 0 },  // Top
+        { x: 10, y: 10 }, // Bottom
+      ],
+      targetPoints: [datacenterPos],
       paths: [
-        // Simple straight path
-        Array.from({ length: 20 }, (_, i) => ({ x: i, y: 5 })),
+        // Path 1: From left to center
+        [
+          { x: 0, y: 2 },
+          { x: 1, y: 2 },
+          { x: 2, y: 2 },
+          { x: 3, y: 2 },
+          { x: 4, y: 2 },
+          { x: 4, y: 3 },
+          { x: 4, y: 4 },
+          { x: 5, y: 4 },
+          { x: 6, y: 4 },
+          { x: 7, y: 4 },
+          { x: 8, y: 4 },
+          { x: 8, y: 5 },
+          { x: 9, y: 5 },
+          { x: 10, y: 5 },
+        ],
+        // Path 2: From right to center
+        [
+          { x: 19, y: 2 },
+          { x: 18, y: 2 },
+          { x: 17, y: 2 },
+          { x: 16, y: 2 },
+          { x: 15, y: 2 },
+          { x: 15, y: 3 },
+          { x: 15, y: 4 },
+          { x: 14, y: 4 },
+          { x: 13, y: 4 },
+          { x: 12, y: 4 },
+          { x: 11, y: 4 },
+          { x: 11, y: 5 },
+          { x: 10, y: 5 },
+        ],
+        // Path 3: From top to center
+        [
+          { x: 10, y: 0 },
+          { x: 10, y: 1 },
+          { x: 10, y: 2 },
+          { x: 10, y: 3 },
+          { x: 10, y: 4 },
+          { x: 10, y: 5 },
+        ],
+        // Path 4: From bottom to center
+        [
+          { x: 10, y: 10 },
+          { x: 10, y: 9 },
+          { x: 10, y: 8 },
+          { x: 10, y: 7 },
+          { x: 10, y: 6 },
+          { x: 10, y: 5 },
+        ],
       ],
       buildableArea: [], // Will be filled based on paths
       waves: [
         {
           waveNumber: 1,
           enemies: [
-            { type: 'traffic_spike', count: 5, interval: 1000 },
+            { type: 'traffic_spike', count: 6, interval: 1000 },
           ],
           reward: 100,
         },
         {
           waveNumber: 2,
           enemies: [
-            { type: 'traffic_spike', count: 3, interval: 800 },
-            { type: 'memory_leak', count: 2, interval: 1500 },
+            { type: 'traffic_spike', count: 4, interval: 800 },
+            { type: 'memory_leak', count: 3, interval: 1500 },
           ],
           reward: 150,
         },
         {
           waveNumber: 3,
           enemies: [
-            { type: 'ddos', count: 3, interval: 1200 },
-            { type: 'slow_query', count: 1, interval: 2000 },
+            { type: 'ddos', count: 4, interval: 1000 },
+            { type: 'traffic_spike', count: 5, interval: 600 },
           ],
           reward: 200,
+        },
+        {
+          waveNumber: 4,
+          enemies: [
+            { type: 'memory_leak', count: 4, interval: 1200 },
+            { type: 'slow_query', count: 2, interval: 2000 },
+          ],
+          reward: 250,
+        },
+        {
+          waveNumber: 5,
+          enemies: [
+            { type: 'ddos', count: 5, interval: 900 },
+            { type: 'memory_leak', count: 3, interval: 1300 },
+            { type: 'slow_query', count: 2, interval: 1800 },
+          ],
+          reward: 300,
+        },
+        {
+          waveNumber: 6,
+          enemies: [
+            { type: 'friday_deploy', count: 1, interval: 3000 },
+            { type: 'ddos', count: 6, interval: 800 },
+            { type: 'traffic_spike', count: 8, interval: 500 },
+          ],
+          reward: 400,
         },
       ],
       startingMoney: GAME_CONFIG.STARTING_MONEY,

@@ -26,40 +26,17 @@ export class TowerMenu extends Phaser.GameObjects.Container {
   }
 
   private createMenu(): void {
-    const theme = telegram.isTelegram() 
-      ? telegram.getTheme()! 
-      : telegram.getDefaultTheme();
-
-    // Background panel
-    const panelWidth = 600;
-    const panelHeight = 120;
-    const panel = this.scene.add.rectangle(0, 0, panelWidth, panelHeight,
-      parseInt(theme.secondaryBgColor.replace('#', '0x'), 16), 0.95);
-    this.add(panel);
-
-    // Title
-    const title = this.scene.add.text(-panelWidth / 2 + 10, -panelHeight / 2 + 10,
-      'Build Tower:', {
-        font: 'bold 16px Arial',
-        color: theme.textColor,
-      });
-    this.add(title);
-
-    // Create tower buttons
-    const towerTypes: TowerType[] = ['nginx', 'load_balancer', 'redis', 'kafka', 'database', 'monitoring'];
+    // Create tower buttons without background panel
+    const towerTypes: TowerType[] = ['nginx', 'load_balancer', 'redis', 'kafka', 'postgresql', 'prometheus'];
     const buttonWidth = 90;
-    const startX = -panelWidth / 2 + 15;
-    const startY = -10;
+    const startX = -270; // Center the buttons
+    const startY = 0;
 
     towerTypes.forEach((towerType, index) => {
       const x = startX + index * (buttonWidth + 5);
       const button = this.createTowerButton(towerType, x, startY);
       this.buttons.set(towerType, button);
     });
-
-    // Cancel button
-    const cancelBtn = this.createCancelButton(panelWidth / 2 - 50, 0);
-    this.add(cancelBtn);
   }
 
   private createTowerButton(towerType: TowerType, x: number, y: number): Phaser.GameObjects.Container {
@@ -70,16 +47,39 @@ export class TowerMenu extends Phaser.GameObjects.Container {
     const config = TOWER_CONFIGS[towerType];
     const desc = TOWER_DESCRIPTIONS[towerType];
 
-    // Button background
-    const bg = this.scene.add.rectangle(0, 0, 85, 80, 0x333333);
-    bg.setStrokeStyle(2, 0x555555);
-    bg.setInteractive({ useHandCursor: true });
+    // Button shadow
+    const shadow = this.scene.add.graphics();
+    shadow.fillStyle(0x000000, 0.4);
+    shadow.fillRoundedRect(-42.5 + 2, -40 + 2, 85, 80, 10);
+    
+    // Button background with better styling
+    const bg = this.scene.add.graphics();
+    bg.fillStyle(0x1a1a1a, 1);
+    bg.fillRoundedRect(-42.5, -40, 85, 80, 10);
+    
+    bg.fillStyle(0x2a2a2a, 0.9);
+    bg.fillRoundedRect(-42.5 + 3, -40 + 3, 79, 74, 8);
+    
+    // Interactive area
+    const hitArea = this.scene.add.rectangle(0, 0, 85, 80, 0xffffff, 0);
+    hitArea.setInteractive({ useHandCursor: true });
 
-    // Icon
-    const icon = this.scene.add.text(0, -20, desc.icon, {
-      font: '32px Arial',
-    });
-    icon.setOrigin(0.5);
+    // Icon - use image if available
+    let icon: Phaser.GameObjects.GameObject;
+    const iconKey = `icon_${towerType}`;
+    
+    if (this.scene.textures.exists(iconKey)) {
+      const iconImage = this.scene.add.image(0, -20, iconKey);
+      iconImage.setDisplaySize(28, 28);
+      icon = iconImage;
+    } else {
+      // Fallback to emoji
+      const iconText = this.scene.add.text(0, -20, desc.icon, {
+        font: '28px Arial',
+      });
+      iconText.setOrigin(0.5);
+      icon = iconText;
+    }
 
     // Cost
     const cost = this.scene.add.text(0, 15, `💰${config.cost}`, {
@@ -95,64 +95,59 @@ export class TowerMenu extends Phaser.GameObjects.Container {
     });
     name.setOrigin(0.5);
 
-    const button = this.scene.add.container(x, y, [bg, icon, cost, name]);
+    const button = this.scene.add.container(x, y, [shadow, bg, hitArea, icon, cost, name]);
     this.add(button);
 
     // Hover effects
-    bg.on('pointerover', () => {
-      bg.setFillStyle(0x444444);
-      bg.setScale(1.05);
+    hitArea.on('pointerover', () => {
+      this.scene.tweens.add({
+        targets: button,
+        scale: 1.08,
+        duration: 150,
+        ease: 'Back.easeOut',
+      });
     });
 
-    bg.on('pointerout', () => {
+    hitArea.on('pointerout', () => {
       if (this.selectedTower !== towerType) {
-        bg.setFillStyle(0x333333);
-        bg.setScale(1);
+        this.scene.tweens.add({
+          targets: button,
+          scale: 1,
+          duration: 150,
+        });
       }
     });
 
-    bg.on('pointerdown', () => {
+    hitArea.on('pointerdown', () => {
       this.selectTower(towerType);
     });
 
     return button;
   }
 
-  private createCancelButton(x: number, y: number): Phaser.GameObjects.Container {
-    const theme = telegram.isTelegram() 
-      ? telegram.getTheme()! 
-      : telegram.getDefaultTheme();
-
-    const bg = this.scene.add.rectangle(0, 0, 80, 40,
-      parseInt(theme.buttonColor.replace('#', '0x'), 16));
-    bg.setInteractive({ useHandCursor: true });
-
-    const label = this.scene.add.text(0, 0, 'Cancel', {
-      font: 'bold 14px Arial',
-      color: theme.buttonTextColor,
-    });
-    label.setOrigin(0.5);
-
-    const button = this.scene.add.container(x, y, [bg, label]);
-
-    bg.on('pointerover', () => bg.setAlpha(0.8));
-    bg.on('pointerout', () => bg.setAlpha(1));
-    bg.on('pointerdown', () => this.selectTower(null));
-
-    return button;
-  }
 
   private selectTower(towerType: TowerType | null): void {
     // Reset previous selection
     this.buttons.forEach((button, type) => {
-      const bg = button.list[0] as Phaser.GameObjects.Rectangle;
+      const bg = button.list[1] as Phaser.GameObjects.Graphics;
       if (type === towerType) {
-        bg.setFillStyle(0x00ff00);
-        bg.setStrokeStyle(3, 0x00ff00);
+        // Selected state
+        bg.clear();
+        bg.fillStyle(0x1a1a1a, 1);
+        bg.fillRoundedRect(-42.5, -40, 85, 80, 10);
+        
+        bg.fillStyle(0x1a4a1a, 1);
+        bg.fillRoundedRect(-42.5 + 3, -40 + 3, 79, 74, 8);
       } else {
-        bg.setFillStyle(0x333333);
-        bg.setStrokeStyle(2, 0x555555);
-        bg.setScale(1);
+        // Normal state
+        bg.clear();
+        bg.fillStyle(0x1a1a1a, 1);
+        bg.fillRoundedRect(-42.5, -40, 85, 80, 10);
+        
+        bg.fillStyle(0x2a2a2a, 0.9);
+        bg.fillRoundedRect(-42.5 + 3, -40 + 3, 79, 74, 8);
+        
+        button.setScale(1);
       }
     });
 

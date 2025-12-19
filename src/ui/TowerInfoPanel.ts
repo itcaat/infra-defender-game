@@ -45,10 +45,31 @@ export class TowerInfoPanel extends Phaser.GameObjects.Container {
     this.setPosition(x, y);
     this.setDepth(150);
 
-    // Background
-    this.background = this.scene.add.rectangle(0, 0, width, height,
-      parseInt(theme.secondaryBgColor.replace('#', '0x'), 16), 0.95);
-    this.background.setStrokeStyle(2, parseInt(theme.buttonColor.replace('#', '0x'), 16));
+    // Background with better styling
+    const bgGraphics = this.scene.add.graphics();
+    
+    // Shadow
+    bgGraphics.fillStyle(0x000000, 0.6);
+    bgGraphics.fillRoundedRect(-width/2 + 4, -height/2 + 4, width, height, 12);
+    
+    // Main background
+    bgGraphics.fillStyle(parseInt(theme.secondaryBgColor.replace('#', '0x'), 16), 0.98);
+    bgGraphics.fillRoundedRect(-width/2, -height/2, width, height, 12);
+    
+    // Inner gradient effect
+    bgGraphics.fillStyle(0x1a2a1a, 0.2);
+    bgGraphics.fillRoundedRect(-width/2 + 4, -height/2 + 4, width - 8, height - 8, 10);
+    
+    // Border with glow
+    bgGraphics.lineStyle(2, parseInt(theme.buttonColor.replace('#', '0x'), 16), 1);
+    bgGraphics.strokeRoundedRect(-width/2, -height/2, width, height, 12);
+    
+    bgGraphics.lineStyle(5, parseInt(theme.buttonColor.replace('#', '0x'), 16), 0.2);
+    bgGraphics.strokeRoundedRect(-width/2, -height/2, width, height, 12);
+    
+    this.add(bgGraphics);
+    
+    this.background = this.scene.add.rectangle(0, 0, width, height, 0xffffff, 0);
     this.add(this.background);
 
     // Title

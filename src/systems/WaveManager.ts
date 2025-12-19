@@ -14,6 +14,7 @@ export class WaveManager {
   private spawnTimer: number = 0;
   private currentEnemyTypeIndex: number = 0;
   private currentEnemyCount: number = 0;
+  private nextSpawnInterval: number = 0;
 
   constructor(waves: WaveConfig[]) {
     this.waves = waves;
@@ -37,6 +38,7 @@ export class WaveManager {
     this.currentEnemyTypeIndex = 0;
     this.currentEnemyCount = 0;
     this.spawnTimer = 0;
+    this.nextSpawnInterval = this.getRandomInterval();
 
     console.log(`🌊 Starting wave ${this.currentWaveIndex + 1}/${this.waves.length}`);
     return true;
@@ -66,7 +68,7 @@ export class WaveManager {
     this.spawnTimer += delta;
 
     // Check if it's time to spawn
-    if (this.spawnTimer >= currentEnemyConfig.interval) {
+    if (this.spawnTimer >= this.nextSpawnInterval) {
       this.spawnTimer = 0;
 
       // Spawn enemy
@@ -79,6 +81,11 @@ export class WaveManager {
       if (this.currentEnemyCount >= currentEnemyConfig.count) {
         this.currentEnemyTypeIndex++;
         this.currentEnemyCount = 0;
+        // Add a longer pause between enemy types
+        this.nextSpawnInterval = currentEnemyConfig.interval * (1.5 + Math.random());
+      } else {
+        // Random interval for next spawn
+        this.nextSpawnInterval = this.getRandomInterval(currentEnemyConfig.interval);
       }
     }
   }
@@ -142,6 +149,19 @@ export class WaveManager {
   getWaveReward(): number {
     const wave = this.waves[this.currentWaveIndex];
     return wave ? wave.reward : 0;
+  }
+
+  /**
+   * Get random interval with variance for natural spawning
+   */
+  private getRandomInterval(baseInterval: number = 1000): number {
+    // 20% chance for group spawn (very short interval)
+    if (Math.random() < 0.2) {
+      return baseInterval * (0.2 + Math.random() * 0.3); // 20-50% of base
+    }
+    
+    // 80% chance for normal spawn with variance
+    return baseInterval * (0.6 + Math.random() * 0.8); // 60-140% of base
   }
 }
 

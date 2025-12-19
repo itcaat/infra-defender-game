@@ -22,13 +22,17 @@ export class PauseScene extends Phaser.Scene {
     // Semi-transparent overlay
     const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.7);
     overlay.setOrigin(0, 0);
+    overlay.setDepth(0);
 
     // Pause text
     const pauseText = this.add.text(width / 2, height / 3, 'PAUSED', {
       font: 'bold 48px Arial',
       color: theme.buttonColor,
+      stroke: '#000000',
+      strokeThickness: 4,
     });
     pauseText.setOrigin(0.5);
+    pauseText.setDepth(10);
 
     // Resume button
     this.createButton(width / 2, height / 2, 'RESUME', () => this.resumeGame());
@@ -55,6 +59,7 @@ export class PauseScene extends Phaser.Scene {
     label.setOrigin(0.5);
 
     const button = this.add.container(x, y, [bg, label]);
+    button.setDepth(10);
 
     bg.on('pointerover', () => {
       bg.setFillStyle(parseInt(theme.buttonColor.replace('#', '0x'), 16), 0.8);

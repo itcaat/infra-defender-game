@@ -61,7 +61,7 @@ export interface LevelConfig {
 }
 
 // Tower Type
-export type TowerType = 'nginx' | 'load_balancer' | 'redis' | 'kafka' | 'database' | 'monitoring';
+export type TowerType = 'nginx' | 'load_balancer' | 'redis' | 'kafka' | 'postgresql' | 'prometheus';
 
 // Enemy Type
 export type EnemyType = 'traffic_spike' | 'ddos' | 'memory_leak' | 'slow_query' | 'friday_deploy';

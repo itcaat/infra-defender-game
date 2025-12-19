@@ -13,6 +13,17 @@ export class PreloadScene extends Phaser.Scene {
   preload(): void {
     console.log('📦 PreloadScene: Loading assets...');
 
+    // Load game background
+    this.load.image('game_background', 'game-background.png');
+
+    // Load tower icons
+    this.load.image('icon_nginx', 'icons/nginx.svg');
+    this.load.image('icon_redis', 'icons/redis.svg');
+    this.load.image('icon_kafka', 'icons/kafka.svg');
+    this.load.image('icon_postgresql', 'icons/postgresql.svg');
+    this.load.image('icon_load_balancer', 'icons/kubernetes.svg');
+    this.load.image('icon_prometheus', 'icons/prometheus.svg');
+
     // Create loading bar
     this.createLoadingBar();
 

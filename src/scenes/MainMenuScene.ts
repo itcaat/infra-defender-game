@@ -15,24 +15,83 @@ export class MainMenuScene extends Phaser.Scene {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
+    // Add background image
+    const bg = this.add.image(0, 0, 'game_background');
+    bg.setOrigin(0, 0);
+    
+    // Scale to fit screen
+    const scaleX = width / bg.width;
+    const scaleY = height / bg.height;
+    const scale = Math.max(scaleX, scaleY);
+    bg.setScale(scale);
+    bg.setDepth(0);
+
+    // Add dark overlay to make text more readable
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.5);
+    overlay.fillRect(0, 0, width, height);
+    overlay.setDepth(1);
+
     // Get theme
     const theme = telegram.isTelegram() 
       ? telegram.getTheme()! 
       : telegram.getDefaultTheme();
 
-    // Title
+    // Title with effects
+    const titleShadow = this.add.text(width / 2 + 4, height / 4 + 4, 'INFRA DEFENDER', {
+      font: 'bold 64px Arial',
+      color: '#000000',
+    });
+    titleShadow.setOrigin(0.5);
+    titleShadow.setAlpha(0.5);
+    titleShadow.setDepth(10);
+    
+    const titleGlow = this.add.text(width / 2, height / 4, 'INFRA DEFENDER', {
+      font: 'bold 64px Arial',
+      color: theme.buttonColor,
+      stroke: theme.buttonColor,
+      strokeThickness: 15,
+    });
+    titleGlow.setOrigin(0.5);
+    titleGlow.setAlpha(0.3);
+    titleGlow.setDepth(10);
+    
     const title = this.add.text(width / 2, height / 4, 'INFRA DEFENDER', {
       font: 'bold 64px Arial',
       color: theme.buttonColor,
+      stroke: '#000000',
+      strokeThickness: 6,
     });
     title.setOrigin(0.5);
+    title.setDepth(10);
+    
+    // Pulsing animation
+    this.tweens.add({
+      targets: [titleGlow],
+      scale: 1.05,
+      alpha: 0.4,
+      duration: 1500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
 
-    // Subtitle
-    const subtitle = this.add.text(width / 2, height / 4 + 70, 'Protect Your Infrastructure!', {
-      font: '24px Arial',
+    // Subtitle with panel
+    const subtitlePanel = this.add.graphics();
+    subtitlePanel.fillStyle(0x0a0a0a, 0.7);
+    subtitlePanel.fillRoundedRect(width / 2 - 180, height / 4 + 54, 360, 36, 18);
+    subtitlePanel.lineStyle(2, parseInt(theme.buttonColor.replace('#', '0x'), 16), 0.5);
+    subtitlePanel.strokeRoundedRect(width / 2 - 180, height / 4 + 54, 360, 36, 18);
+    subtitlePanel.setDepth(10);
+    
+    const subtitle = this.add.text(width / 2, height / 4 + 72, '🛡️ Protect Your Infrastructure!', {
+      font: 'bold 20px Arial',
       color: theme.textColor,
+      stroke: '#000000',
+      strokeThickness: 3,
     });
     subtitle.setOrigin(0.5);
+    subtitle.setDepth(10);
 
     // User greeting
     const user = telegram.getUser();
@@ -42,6 +101,7 @@ export class MainMenuScene extends Phaser.Scene {
         color: theme.hintColor,
       });
       greeting.setOrigin(0.5);
+      greeting.setDepth(10);
     }
 
     // Start button
@@ -74,6 +134,7 @@ export class MainMenuScene extends Phaser.Scene {
       color: theme.hintColor,
     });
     version.setOrigin(1, 1);
+    version.setDepth(10);
 
     console.log('🏠 MainMenuScene: Ready');
   }
@@ -83,11 +144,36 @@ export class MainMenuScene extends Phaser.Scene {
       ? telegram.getTheme()! 
       : telegram.getDefaultTheme();
 
-    // Button background
-    const bg = this.add.rectangle(0, 0, 300, 50, parseInt(theme.buttonColor.replace('#', '0x'), 16));
-    bg.setInteractive({ useHandCursor: true });
+    // Button shadow
+    const shadow = this.add.graphics();
+    shadow.fillStyle(0x000000, 0.5);
+    shadow.fillRoundedRect(-150 + 3, -25 + 3, 300, 50, 12);
 
-    // Button text
+    // Button background with gradient
+    const bg = this.add.graphics();
+    bg.fillStyle(parseInt(theme.buttonColor.replace('#', '0x'), 16), 1);
+    bg.fillRoundedRect(-150, -25, 300, 50, 12);
+    
+    // Inner highlight
+    bg.fillStyle(0xffffff, 0.15);
+    bg.fillRoundedRect(-145, -20, 290, 15, 10);
+    
+    // Border
+    bg.lineStyle(2, 0xffffff, 0.3);
+    bg.strokeRoundedRect(-150, -25, 300, 50, 12);
+
+    // Interactive area
+    const hitArea = this.add.rectangle(0, 0, 300, 50, 0xffffff, 0);
+    hitArea.setInteractive({ useHandCursor: true });
+
+    // Button text with shadow
+    const labelShadow = this.add.text(1, 1, text, {
+      font: 'bold 20px Arial',
+      color: '#000000',
+    });
+    labelShadow.setOrigin(0.5);
+    labelShadow.setAlpha(0.5);
+
     const label = this.add.text(0, 0, text, {
       font: 'bold 20px Arial',
       color: theme.buttonTextColor,
@@ -95,28 +181,28 @@ export class MainMenuScene extends Phaser.Scene {
     label.setOrigin(0.5);
 
     // Container
-    const button = this.add.container(x, y, [bg, label]);
+    const button = this.add.container(x, y, [shadow, bg, hitArea, labelShadow, label]);
+    button.setDepth(10);
 
     // Hover effects
-    bg.on('pointerover', () => {
-      bg.setFillStyle(parseInt(theme.buttonColor.replace('#', '0x'), 16), 0.8);
+    hitArea.on('pointerover', () => {
       this.tweens.add({
         targets: button,
         scale: 1.05,
-        duration: 100,
+        duration: 150,
+        ease: 'Back.easeOut',
       });
     });
 
-    bg.on('pointerout', () => {
-      bg.setFillStyle(parseInt(theme.buttonColor.replace('#', '0x'), 16), 1);
+    hitArea.on('pointerout', () => {
       this.tweens.add({
         targets: button,
         scale: 1,
-        duration: 100,
+        duration: 150,
       });
     });
 
-    bg.on('pointerdown', () => {
+    hitArea.on('pointerdown', () => {
       this.tweens.add({
         targets: button,
         scale: 0.95,

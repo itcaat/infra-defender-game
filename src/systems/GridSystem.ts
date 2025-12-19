@@ -34,11 +34,18 @@ export class GridSystem {
   /**
    * Set path cells (where enemies walk)
    */
-  setPath(path: GridPosition[]): void {
+  setPath(path: GridPosition[] | GridPosition[][]): void {
     this.pathCells.clear();
-    path.forEach(pos => {
-      this.pathCells.add(this.cellKey(pos.x, pos.y));
+    
+    // Handle both single path and multiple paths
+    const paths = Array.isArray(path[0]) ? path as GridPosition[][] : [path as GridPosition[]];
+    
+    paths.forEach(singlePath => {
+      singlePath.forEach(pos => {
+        this.pathCells.add(this.cellKey(pos.x, pos.y));
+      });
     });
+    
     // Rebuild buildable area to exclude path
     this.initializeBuildableArea();
   }

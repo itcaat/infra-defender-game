@@ -24,11 +24,20 @@ export class UIScene extends Phaser.Scene {
       ? telegram.getTheme()! 
       : telegram.getDefaultTheme();
 
-    // Top panel background
-    const topPanel = this.add.rectangle(0, 0, this.cameras.main.width, 60, 
-      parseInt(theme.secondaryBgColor.replace('#', '0x'), 16));
-    topPanel.setOrigin(0, 0);
-    topPanel.setAlpha(0.9);
+    // Top panel background with gradient effect
+    const panelGraphics = this.add.graphics();
+    
+    // Shadow
+    panelGraphics.fillStyle(0x000000, 0.3);
+    panelGraphics.fillRect(0, 3, this.cameras.main.width, 60);
+    
+    // Main background
+    panelGraphics.fillStyle(parseInt(theme.secondaryBgColor.replace('#', '0x'), 16), 0.95);
+    panelGraphics.fillRect(0, 0, this.cameras.main.width, 60);
+    
+    // Bottom accent line
+    panelGraphics.fillStyle(parseInt(theme.buttonColor.replace('#', '0x'), 16), 0.4);
+    panelGraphics.fillRect(0, 57, this.cameras.main.width, 3);
 
     // Create UI elements
     this.createTopBar();

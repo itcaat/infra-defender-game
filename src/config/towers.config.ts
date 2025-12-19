@@ -45,8 +45,8 @@ export const TOWER_CONFIGS: Record<TowerType, TowerData> = {
     upgradeCost: 300,
     specialAbility: 'queue_damage',
   },
-  database: {
-    type: 'database',
+  postgresql: {
+    type: 'postgresql',
     level: 1,
     damage: 20,
     range: 100,
@@ -55,8 +55,8 @@ export const TOWER_CONFIGS: Record<TowerType, TowerData> = {
     upgradeCost: 270,
     specialAbility: 'high_damage',
   },
-  monitoring: {
-    type: 'monitoring',
+  prometheus: {
+    type: 'prometheus',
     level: 1,
     damage: 3,
     range: 200,
@@ -68,40 +68,56 @@ export const TOWER_CONFIGS: Record<TowerType, TowerData> = {
 };
 
 // Tower descriptions for UI
-export const TOWER_DESCRIPTIONS: Record<TowerType, {
+export interface TowerDescription {
   name: string;
   description: string;
   icon: string;
-}> = {
+  iconImage?: string;
+  iconColor?: string;
+}
+
+export const TOWER_DESCRIPTIONS: Record<TowerType, TowerDescription> = {
   nginx: {
     name: 'Nginx',
     description: 'Fast rate limiting. Good vs traffic spikes.',
     icon: '🔵',
+    iconImage: 'icons/nginx.svg',
+    iconColor: '#009639',
   },
   load_balancer: {
     name: 'Load Balancer',
     description: 'Buffs nearby towers. Low damage.',
     icon: '⚖️',
+    iconImage: 'icons/kubernetes.svg',
+    iconColor: '#326CE5',
   },
   redis: {
     name: 'Redis Cache',
     description: 'Slows enemies. Moderate damage.',
     icon: '🔴',
+    iconImage: 'icons/redis.svg',
+    iconColor: '#DC382D',
   },
   kafka: {
     name: 'Kafka Queue',
     description: 'High damage, slow attacks. Long range.',
     icon: '📨',
+    iconImage: 'icons/kafka.svg',
+    iconColor: '#231F20',
   },
-  database: {
-    name: 'Database',
+  postgresql: {
+    name: 'PostgreSQL',
     description: 'Very high damage. Short range.',
     icon: '🗄️',
+    iconImage: 'icons/postgresql.svg',
+    iconColor: '#336791',
   },
-  monitoring: {
-    name: 'Monitoring',
+  prometheus: {
+    name: 'Prometheus',
     description: 'Reveals enemy info. Very fast, low damage.',
     icon: '📊',
+    iconImage: 'icons/prometheus.svg',
+    iconColor: '#E6522C',
   },
 };
 

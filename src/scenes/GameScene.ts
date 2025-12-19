@@ -5,10 +5,25 @@
 import Phaser from 'phaser';
 import { SCENES, GAME_CONFIG, COLORS } from '../config/game.config';
 import { gameManager } from '../game/GameManager';
-import type { LevelData, GridPosition } from '../types/phaser.types';
+import { GridSystem } from '../systems/GridSystem';
+import { WaveManager } from '../systems/WaveManager';
+import { TowerMenu } from '../ui/TowerMenu';
+import { Tower } from '../entities/Tower';
+import { Enemy } from '../entities/Enemy';
+import type { LevelData, GridPosition, TowerType, EnemyType } from '../types/phaser.types';
+import { TOWER_CONFIGS } from '../config/towers.config';
 
 export class GameScene extends Phaser.Scene {
   private gridGraphics!: Phaser.GameObjects.Graphics;
+  private gridSystem!: GridSystem;
+  private waveManager!: WaveManager;
+  private towerMenu!: TowerMenu;
+  private selectedTowerType: TowerType | null = null;
+  private previewGraphics!: Phaser.GameObjects.Graphics;
+  private towers: Tower[] = [];
+  private enemies: Enemy[] = [];
+  private startWaveButton!: Phaser.GameObjects.Container;
+  private level!: LevelData;
 
   constructor() {
     super({ key: SCENES.GAME });
@@ -18,26 +33,36 @@ export class GameScene extends Phaser.Scene {
     console.log('🎮 GameScene: Initializing...');
 
     // Create mock level data
-    const mockLevel = this.createMockLevel();
+    this.level = this.createMockLevel();
     
     // Initialize game manager with level
-    gameManager.initializeGame(mockLevel);
+    gameManager.initializeGame(this.level);
+
+    // Initialize grid system
+    this.gridSystem = new GridSystem();
+    this.gridSystem.setPath(this.level.paths[0]);
+
+    // Initialize wave manager
+    this.waveManager = new WaveManager(this.level.waves);
 
     // Create grid
     this.createGrid();
 
-    // Add placeholder text
-    const centerX = this.cameras.main.width / 2;
-    const centerY = this.cameras.main.height / 2;
+    // Create preview graphics
+    this.previewGraphics = this.add.graphics();
+    this.previewGraphics.setDepth(50);
 
-    const text = this.add.text(centerX, centerY, 
-      'Game Scene\n\nClick to place towers (Coming soon!)\nPress ESC to pause', {
-      font: '24px Arial',
-      color: '#00ff00',
-      align: 'center',
-    });
-    text.setOrigin(0.5);
-    text.setDepth(100);
+    // Create tower menu
+    this.towerMenu = new TowerMenu(
+      this,
+      this.cameras.main.width / 2,
+      this.cameras.main.height - 70,
+      (towerType) => this.onTowerSelected(towerType)
+    );
+    this.towerMenu.setDepth(100);
+
+    // Create start wave button
+    this.createStartWaveButton();
 
     // Setup input
     this.setupInput();
@@ -46,6 +71,7 @@ export class GameScene extends Phaser.Scene {
     this.setupGameEvents();
 
     console.log('✅ GameScene: Ready');
+    console.log('💡 Place some towers, then click "Start Wave" to begin!');
   }
 
   private createGrid(): void {
@@ -73,6 +99,21 @@ export class GameScene extends Phaser.Scene {
     for (let y = 0; y <= height; y += gridSize) {
       this.gridGraphics.lineBetween(0, y, width, y);
     }
+
+    // Draw path cells
+    const level = gameManager.getLevel();
+    if (level) {
+      this.gridGraphics.fillStyle(COLORS.PATH, 0.3);
+      level.paths[0].forEach(pos => {
+        const worldPos = this.gridSystem.gridToWorld(pos.x, pos.y);
+        this.gridGraphics.fillRect(
+          worldPos.x - gridSize / 2,
+          worldPos.y - gridSize / 2,
+          gridSize,
+          gridSize
+        );
+      });
+    }
   }
 
   private setupInput(): void {
@@ -83,10 +124,90 @@ export class GameScene extends Phaser.Scene {
 
     // Grid click handler
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      const gridPos = this.worldToGrid(pointer.x, pointer.y);
-      console.log('Clicked grid position:', gridPos);
-      // TODO: Handle tower placement
+      this.handleGridClick(pointer.x, pointer.y);
     });
+
+    // Mouse move handler for preview
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      this.updatePlacementPreview(pointer.x, pointer.y);
+    });
+  }
+
+  private handleGridClick(worldX: number, worldY: number): void {
+    if (!this.selectedTowerType) return;
+
+    const gridPos = this.gridSystem.worldToGrid(worldX, worldY);
+
+    // Check if placement is valid
+    if (!this.gridSystem.isValidPlacement(gridPos.x, gridPos.y)) {
+      console.log('❌ Invalid placement position');
+      return;
+    }
+
+    // Check if player has enough money
+    const towerConfig = TOWER_CONFIGS[this.selectedTowerType];
+    if (!gameManager.spendMoney(towerConfig.cost)) {
+      console.log('❌ Not enough money!');
+      return;
+    }
+
+    // Place the tower
+    this.placeTower(this.selectedTowerType, gridPos.x, gridPos.y);
+
+    // Clear selection
+    this.towerMenu.clearSelection();
+    this.selectedTowerType = null;
+  }
+
+  private placeTower(towerType: TowerType, gridX: number, gridY: number): void {
+    const worldPos = this.gridSystem.gridToWorld(gridX, gridY);
+    
+    // Create tower entity
+    const tower = new Tower(this, worldPos.x, worldPos.y, towerType);
+    this.towers.push(tower);
+
+    // Mark cell as occupied
+    this.gridSystem.occupyCell(gridX, gridY);
+
+    console.log(`✅ Placed ${towerType} at (${gridX}, ${gridY})`);
+  }
+
+  private updatePlacementPreview(worldX: number, worldY: number): void {
+    this.previewGraphics.clear();
+
+    if (!this.selectedTowerType) return;
+
+    const gridPos = this.gridSystem.worldToGrid(worldX, worldY);
+    const worldPos = this.gridSystem.gridToWorld(gridPos.x, gridPos.y);
+    const isValid = this.gridSystem.isValidPlacement(gridPos.x, gridPos.y);
+
+    // Draw cell highlight
+    const gridSize = GAME_CONFIG.GRID_SIZE;
+    const color = isValid ? COLORS.GRID_VALID : COLORS.GRID_INVALID;
+    this.previewGraphics.fillStyle(color, 0.5);
+    this.previewGraphics.fillRect(
+      worldPos.x - gridSize / 2,
+      worldPos.y - gridSize / 2,
+      gridSize,
+      gridSize
+    );
+
+    // Draw range preview if valid
+    if (isValid) {
+      const towerConfig = TOWER_CONFIGS[this.selectedTowerType];
+      this.previewGraphics.lineStyle(2, COLORS.TOWER, 0.5);
+      this.previewGraphics.strokeCircle(worldPos.x, worldPos.y, towerConfig.range);
+    }
+  }
+
+  private onTowerSelected(towerType: TowerType | null): void {
+    this.selectedTowerType = towerType;
+    if (towerType) {
+      console.log(`🔨 Selected tower: ${towerType}`);
+    } else {
+      console.log('❌ Tower selection cancelled');
+      this.previewGraphics.clear();
+    }
   }
 
   private setupGameEvents(): void {
@@ -96,6 +217,9 @@ export class GameScene extends Phaser.Scene {
 
     gameManager.on('errorBudget:changed', (errorBudget: number) => {
       console.log('❤️ Error Budget:', errorBudget);
+      if (errorBudget <= 0) {
+        this.onGameOver();
+      }
     });
 
     gameManager.on('wave:started', (wave: number) => {
@@ -103,14 +227,42 @@ export class GameScene extends Phaser.Scene {
     });
 
     gameManager.on('game:over', (score: number) => {
-      console.log('💀 Game Over! Score:', score);
-      this.scene.start(SCENES.GAME_OVER);
+      this.onGameOver();
     });
 
     gameManager.on('game:victory', (score: number) => {
-      console.log('🎉 Victory! Score:', score);
-      this.scene.start(SCENES.VICTORY);
+      this.onVictory();
     });
+
+    // Listen to enemy events
+    this.events.on('enemy:reachedEnd', (enemyData: any) => {
+      gameManager.damageErrorBudget(enemyData.errorBudgetDamage);
+      this.waveManager.onEnemyReachedEnd();
+      
+      // Remove enemy from array
+      this.enemies = this.enemies.filter(e => e.getData().health > 0);
+    });
+
+    this.events.on('enemy:killed', (enemyData: any) => {
+      gameManager.addMoney(enemyData.reward);
+      gameManager.addScore(enemyData.reward * 10);
+      this.waveManager.onEnemyKilled();
+      
+      // Remove enemy from array
+      this.enemies = this.enemies.filter(e => e.getData().health > 0);
+    });
+  }
+
+  private onGameOver(): void {
+    console.log('💀 Game Over! Score:', gameManager.getState().score);
+    this.scene.stop(SCENES.UI);
+    this.scene.start(SCENES.GAME_OVER);
+  }
+
+  private onVictory(): void {
+    console.log('🎉 Victory! Score:', gameManager.getState().score);
+    this.scene.stop(SCENES.UI);
+    this.scene.start(SCENES.VICTORY);
   }
 
   private pauseGame(): void {
@@ -119,18 +271,77 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch(SCENES.PAUSE);
   }
 
-  private worldToGrid(worldX: number, worldY: number): GridPosition {
-    return {
-      x: Math.floor(worldX / GAME_CONFIG.GRID_SIZE),
-      y: Math.floor(worldY / GAME_CONFIG.GRID_SIZE),
-    };
+  private createStartWaveButton(): void {
+    const x = this.cameras.main.width - 100;
+    const y = this.cameras.main.height - 70;
+
+    const bg = this.add.rectangle(0, 0, 120, 50, 0x00aa00);
+    bg.setInteractive({ useHandCursor: true });
+
+    const label = this.add.text(0, 0, 'Start Wave', {
+      font: 'bold 16px Arial',
+      color: '#ffffff',
+    });
+    label.setOrigin(0.5);
+
+    this.startWaveButton = this.add.container(x, y, [bg, label]);
+    this.startWaveButton.setDepth(100);
+
+    bg.on('pointerover', () => bg.setFillStyle(0x00ff00));
+    bg.on('pointerout', () => bg.setFillStyle(0x00aa00));
+    bg.on('pointerdown', () => this.onStartWaveClick());
   }
 
-  private gridToWorld(gridX: number, gridY: number): { x: number; y: number } {
-    return {
-      x: gridX * GAME_CONFIG.GRID_SIZE + GAME_CONFIG.GRID_SIZE / 2,
-      y: gridY * GAME_CONFIG.GRID_SIZE + GAME_CONFIG.GRID_SIZE / 2,
-    };
+  private onStartWaveClick(): void {
+    if (this.waveManager.isActive()) {
+      console.log('⚠️ Wave already in progress');
+      return;
+    }
+
+    if (this.waveManager.startNextWave()) {
+      gameManager.startNextWave();
+      this.startWaveButton.setVisible(false);
+    } else {
+      console.log('✅ All waves completed!');
+    }
+  }
+
+  private spawnEnemy(type: EnemyType): void {
+    const spawnPoint = this.level.spawnPoints[0];
+    const worldPos = this.gridSystem.gridToWorld(spawnPoint.x, spawnPoint.y);
+    
+    const enemy = new Enemy(this, worldPos.x, worldPos.y, type, this.level.paths[0]);
+    this.enemies.push(enemy);
+
+    console.log(`👾 Spawned ${type}`);
+  }
+
+  update(time: number, delta: number): void {
+    // Update all towers
+    this.towers.forEach(tower => tower.update(time, delta));
+
+    // Update all enemies
+    this.enemies.forEach(enemy => enemy.update(time, delta));
+
+    // Update wave manager
+    this.waveManager.update(delta, (type) => this.spawnEnemy(type));
+
+    // Check if wave completed
+    if (!this.waveManager.isActive() && this.enemies.length === 0) {
+      if (!this.waveManager.isAllWavesComplete()) {
+        this.startWaveButton.setVisible(true);
+        
+        // Award wave completion bonus
+        const reward = this.waveManager.getWaveReward();
+        if (reward > 0) {
+          gameManager.addMoney(reward);
+          gameManager.completeWave();
+        }
+      } else {
+        // All waves completed - victory!
+        gameManager.emit('game:victory', gameManager.getState().score);
+      }
+    }
   }
 
   private createMockLevel(): LevelData {
@@ -154,6 +365,22 @@ export class GameScene extends Phaser.Scene {
             { type: 'traffic_spike', count: 5, interval: 1000 },
           ],
           reward: 100,
+        },
+        {
+          waveNumber: 2,
+          enemies: [
+            { type: 'traffic_spike', count: 3, interval: 800 },
+            { type: 'memory_leak', count: 2, interval: 1500 },
+          ],
+          reward: 150,
+        },
+        {
+          waveNumber: 3,
+          enemies: [
+            { type: 'ddos', count: 3, interval: 1200 },
+            { type: 'slow_query', count: 1, interval: 2000 },
+          ],
+          reward: 200,
         },
       ],
       startingMoney: GAME_CONFIG.STARTING_MONEY,

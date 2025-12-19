@@ -92,7 +92,9 @@ export class UIScene extends Phaser.Scene {
 
     this.moneyText.setText(`💰 Money: ${state.money}`);
     this.errorBudgetText.setText(`❤️ Error Budget: ${state.errorBudget}`);
-    this.waveText.setText(`🌊 Wave: ${state.currentWave}/${state.totalWaves}`);
+    // Show 0/N before first wave starts, then 1/N, 2/N, etc.
+    const displayWave = state.currentWave === 0 ? 0 : state.currentWave;
+    this.waveText.setText(`🌊 Wave: ${displayWave}/${state.totalWaves}`);
     this.scoreText.setText(`⭐ Score: ${state.score}`);
 
     // Color coding for error budget

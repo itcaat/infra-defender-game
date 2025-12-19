@@ -55,7 +55,16 @@ export class TelegramIntegration {
 
     try {
       // Try to retrieve launch parameters
-      const launchParams = retrieveLaunchParams();
+      let launchParams;
+      try {
+        launchParams = retrieveLaunchParams();
+      } catch (e) {
+        // Not in Telegram environment - this is expected when running in browser
+        console.log('ℹ️ Not running in Telegram environment (browser mode)');
+        this.isTelegramEnvironment = false;
+        this.initialized = true;
+        return;
+      }
       
       if (!launchParams) {
         console.log('ℹ️ Not running in Telegram environment');

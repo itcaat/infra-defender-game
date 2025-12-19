@@ -5,6 +5,7 @@
 import Phaser from 'phaser';
 import type { EnemyType, EnemyData, GridPosition } from '../types/phaser.types';
 import { GAME_CONFIG } from '../config/game.config';
+import { ENEMY_CONFIGS, ENEMY_DESCRIPTIONS } from '../config/enemies.config';
 
 export class Enemy extends Phaser.GameObjects.Container {
   private enemyData: EnemyData;
@@ -23,12 +24,25 @@ export class Enemy extends Phaser.GameObjects.Container {
   ) {
     super(scene, x, y);
 
-    this.enemyData = this.getEnemyData(enemyType);
+    const config = ENEMY_CONFIGS[enemyType];
+    this.enemyData = {
+      ...config,
+      health: config.maxHealth,
+    };
     this.path = path;
 
+    const desc = ENEMY_DESCRIPTIONS[enemyType];
+
     // Create visual representation (placeholder)
-    this.enemySprite = scene.add.rectangle(0, 0, 40, 40, 0xff0000);
+    this.enemySprite = scene.add.rectangle(0, 0, 40, 40, desc.color);
     this.add(this.enemySprite);
+
+    // Add icon
+    const icon = scene.add.text(0, 0, desc.icon, {
+      font: '24px Arial',
+    });
+    icon.setOrigin(0.5);
+    this.add(icon);
 
     // Create health bar
     this.healthBar = scene.add.graphics();
@@ -40,65 +54,14 @@ export class Enemy extends Phaser.GameObjects.Container {
   }
 
   /**
-   * Get enemy data based on type
-   */
-  private getEnemyData(type: EnemyType): EnemyData {
-    // Placeholder data - will be moved to config
-    const enemyConfigs: Record<EnemyType, EnemyData> = {
-      traffic_spike: {
-        type: 'traffic_spike',
-        health: 50,
-        maxHealth: 50,
-        speed: 100, // pixels per second
-        errorBudgetDamage: 10,
-        reward: 10,
-      },
-      ddos: {
-        type: 'ddos',
-        health: 100,
-        maxHealth: 100,
-        speed: 150,
-        errorBudgetDamage: 20,
-        reward: 20,
-      },
-      memory_leak: {
-        type: 'memory_leak',
-        health: 80,
-        maxHealth: 80,
-        speed: 60,
-        errorBudgetDamage: 15,
-        reward: 15,
-        specialBehavior: 'grows_over_time',
-      },
-      slow_query: {
-        type: 'slow_query',
-        health: 120,
-        maxHealth: 120,
-        speed: 40,
-        errorBudgetDamage: 25,
-        reward: 25,
-        specialBehavior: 'slows_towers',
-      },
-      friday_deploy: {
-        type: 'friday_deploy',
-        health: 200,
-        maxHealth: 200,
-        speed: 80,
-        errorBudgetDamage: 50,
-        reward: 50,
-        specialBehavior: 'spawns_bugs',
-      },
-    };
-
-    return enemyConfigs[type];
-  }
-
-  /**
    * Update enemy logic (called every frame)
    */
   update(time: number, delta: number): void {
+    // Cap delta to prevent huge jumps (e.g., when tab is inactive)
+    const cappedDelta = Math.min(delta, 100);
+    
     // Move along path
-    this.moveAlongPath(delta);
+    this.moveAlongPath(cappedDelta);
 
     // Check if reached end
     if (this.hasReachedEnd()) {
@@ -123,19 +86,31 @@ export class Enemy extends Phaser.GameObjects.Container {
     const endY = nextPoint.y * GAME_CONFIG.GRID_SIZE + GAME_CONFIG.GRID_SIZE / 2;
 
     const distance = Phaser.Math.Distance.Between(startX, startY, endX, endY);
-    const moveAmount = (this.enemyData.speed * delta) / 1000;
-
-    this.moveProgress += moveAmount / distance;
+    
+    // More stable movement calculation
+    const moveAmount = (this.enemyData.speed * (delta / 1000));
+    
+    if (distance > 0) {
+      this.moveProgress += moveAmount / distance;
+    }
 
     if (this.moveProgress >= 1) {
       this.moveProgress = 0;
       this.currentPathIndex++;
+      
+      // Make sure we don't overshoot
+      if (this.currentPathIndex < this.path.length - 1) {
+        // Continue to next segment
+        return this.moveAlongPath(0); // Process remaining movement
+      }
     }
 
-    // Interpolate position
-    const t = this.moveProgress;
-    this.x = startX + (endX - startX) * t;
-    this.y = startY + (endY - startY) * t;
+    // Smooth interpolation with clamping
+    const t = Math.min(Math.max(this.moveProgress, 0), 1);
+    
+    // Use linear interpolation for smooth movement
+    this.x = Phaser.Math.Linear(startX, endX, t);
+    this.y = Phaser.Math.Linear(startY, endY, t);
   }
 
   /**

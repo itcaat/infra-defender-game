@@ -19,9 +19,10 @@ export const GAME_CONFIG = {
   // Tower Costs
   TOWER_COSTS: {
     nginx: 100,
-    load_balancer: 150,
+    api_gateway: 150,
     redis: 120,
     kafka: 200,
+    clickhouse: 160,
     database: 180,
     monitoring: 80,
   },
@@ -65,5 +66,6 @@ export const SCENES = {
   PAUSE: 'PauseScene',
   GAME_OVER: 'GameOverScene',
   VICTORY: 'VictoryScene',
+  LEVEL_EDITOR: 'LevelEditorScene',
 } as const;
 

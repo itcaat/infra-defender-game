@@ -15,8 +15,8 @@ export const TOWER_CONFIGS: Record<TowerType, TowerData> = {
     upgradeCost: 150,
     specialAbility: 'rate_limit',
   },
-  load_balancer: {
-    type: 'load_balancer',
+  api_gateway: {
+    type: 'api_gateway',
     level: 1,
     damage: 5,
     range: 120,
@@ -65,6 +65,16 @@ export const TOWER_CONFIGS: Record<TowerType, TowerData> = {
     upgradeCost: 120,
     specialAbility: 'reveal',
   },
+  clickhouse: {
+    type: 'clickhouse',
+    level: 1,
+    damage: 12,
+    range: 160,
+    attackSpeed: 1.2,
+    cost: 160,
+    upgradeCost: 240,
+    specialAbility: 'analytics',
+  },
 };
 
 // Tower descriptions for UI
@@ -84,12 +94,12 @@ export const TOWER_DESCRIPTIONS: Record<TowerType, TowerDescription> = {
     iconImage: 'icons/nginx.svg',
     iconColor: '#009639',
   },
-  load_balancer: {
-    name: 'Load Balancer',
-    description: 'Buffs nearby towers. Low damage.',
-    icon: '⚖️',
-    iconImage: 'icons/kubernetes.svg',
-    iconColor: '#326CE5',
+  api_gateway: {
+    name: 'API Gateway',
+    description: 'Routes requests, buffs nearby towers.',
+    icon: '🚪',
+    iconImage: 'icons/api-gateway.svg',
+    iconColor: '#FF9900',
   },
   redis: {
     name: 'Redis Cache',
@@ -118,6 +128,13 @@ export const TOWER_DESCRIPTIONS: Record<TowerType, TowerDescription> = {
     icon: '📊',
     iconImage: 'icons/prometheus.svg',
     iconColor: '#E6522C',
+  },
+  clickhouse: {
+    name: 'ClickHouse',
+    description: 'Analytics database. Good damage, good range.',
+    icon: '🗂️',
+    iconImage: 'icons/clickhouse.svg',
+    iconColor: '#FFCC00',
   },
 };
 

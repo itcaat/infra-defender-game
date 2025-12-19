@@ -21,8 +21,9 @@ export class PreloadScene extends Phaser.Scene {
     this.load.image('icon_redis', 'icons/redis.svg');
     this.load.image('icon_kafka', 'icons/kafka.svg');
     this.load.image('icon_postgresql', 'icons/postgresql.svg');
-    this.load.image('icon_load_balancer', 'icons/kubernetes.svg');
+    this.load.image('icon_api_gateway', 'icons/api-gateway.svg');
     this.load.image('icon_prometheus', 'icons/prometheus.svg');
+    this.load.image('icon_clickhouse', 'icons/clickhouse.svg');
 
     // Create loading bar
     this.createLoadingBar();

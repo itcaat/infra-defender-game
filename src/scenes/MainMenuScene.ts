@@ -128,6 +128,18 @@ export class MainMenuScene extends Phaser.Scene {
       () => console.log('Settings - Coming soon!')
     );
 
+    // Level Editor button (dev mode only)
+    const isDev = import.meta.env.DEV || window.location.search.includes('dev');
+    if (isDev) {
+      const editorButton = this.createButton(
+        width / 2,
+        height / 2 + 290,
+        '🎨 LEVEL EDITOR',
+        () => this.openLevelEditor()
+      );
+      editorButton.setAlpha(0.8); // Slightly transparent to indicate dev feature
+    }
+
     // Version info
     const version = this.add.text(width - 10, height - 10, 'v0.0.1 - MVP', {
       font: '14px Arial',
@@ -221,6 +233,11 @@ export class MainMenuScene extends Phaser.Scene {
     // Start both game and UI scenes
     this.scene.start(SCENES.GAME);
     this.scene.launch(SCENES.UI);
+  }
+
+  private openLevelEditor(): void {
+    console.log('🎨 Opening level editor...');
+    this.scene.start(SCENES.LEVEL_EDITOR);
   }
 }
 

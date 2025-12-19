@@ -12,6 +12,7 @@ import { UIScene } from './scenes/UIScene';
 import { PauseScene } from './scenes/PauseScene';
 import { GameOverScene } from './scenes/GameOverScene';
 import { VictoryScene } from './scenes/VictoryScene';
+import { LevelEditorScene } from './scenes/LevelEditorScene';
 
 // Initialize Telegram and Supabase before starting the game
 async function initializeApp() {
@@ -67,6 +68,7 @@ async function initializeApp() {
       PauseScene,
       GameOverScene,
       VictoryScene,
+      LevelEditorScene,
     ],
     physics: {
       default: 'arcade',

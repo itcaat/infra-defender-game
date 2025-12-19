@@ -43,8 +43,16 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     console.log('🎮 GameScene: Initializing...');
 
-    // Create mock level data
-    this.level = this.createMockLevel();
+    // Check if we have test level data from editor
+    const testLevelData = localStorage.getItem('testLevelData');
+    if (testLevelData) {
+      console.log('🎨 Loading test level from editor...');
+      this.level = this.createLevelFromEditorData(JSON.parse(testLevelData));
+      localStorage.removeItem('testLevelData'); // Clear after loading
+    } else {
+      // Create mock level data
+      this.level = this.createMockLevel();
+    }
     
     // Initialize game manager with level
     gameManager.initializeGame(this.level);
@@ -630,24 +638,75 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createStartWaveButton(): void {
-    const x = this.cameras.main.width - 100;
+    const x = this.cameras.main.width - 120;
     const y = this.cameras.main.height - 70;
 
-    const bg = this.add.rectangle(0, 0, 120, 50, 0x00aa00);
-    bg.setInteractive({ useHandCursor: true });
+    // Button shadow
+    const shadow = this.add.graphics();
+    shadow.fillStyle(0x000000, 0.5);
+    shadow.fillRoundedRect(-82.5, -27.5, 165, 55, 12);
+
+    // Button background with gradient
+    const bg = this.add.graphics();
+    bg.fillStyle(0x00aa00, 1);
+    bg.fillRoundedRect(-80, -25, 160, 50, 12);
+    
+    // Inner highlight
+    bg.fillStyle(0xffffff, 0.15);
+    bg.fillRoundedRect(-75, -20, 150, 15, 10);
+    
+    // Border
+    bg.lineStyle(2, 0xffffff, 0.3);
+    bg.strokeRoundedRect(-80, -25, 160, 50, 12);
+
+    // Interactive area
+    const hitArea = this.add.rectangle(0, 0, 160, 50, 0xffffff, 0);
+    hitArea.setInteractive({ useHandCursor: true });
+
+    // Button text with shadow
+    const labelShadow = this.add.text(1, 1, 'Start Wave', {
+      font: 'bold 18px Arial',
+      color: '#000000',
+    });
+    labelShadow.setOrigin(0.5);
+    labelShadow.setAlpha(0.5);
 
     const label = this.add.text(0, 0, 'Start Wave', {
-      font: 'bold 16px Arial',
+      font: 'bold 18px Arial',
       color: '#ffffff',
     });
     label.setOrigin(0.5);
 
-    this.startWaveButton = this.add.container(x, y, [bg, label]);
+    this.startWaveButton = this.add.container(x, y, [shadow, bg, hitArea, labelShadow, label]);
     this.startWaveButton.setDepth(100);
 
-    bg.on('pointerover', () => bg.setFillStyle(0x00ff00));
-    bg.on('pointerout', () => bg.setFillStyle(0x00aa00));
-    bg.on('pointerdown', () => this.onStartWaveClick());
+    // Hover effects
+    hitArea.on('pointerover', () => {
+      this.tweens.add({
+        targets: this.startWaveButton,
+        scale: 1.05,
+        duration: 150,
+        ease: 'Back.easeOut',
+      });
+    });
+
+    hitArea.on('pointerout', () => {
+      this.tweens.add({
+        targets: this.startWaveButton,
+        scale: 1,
+        duration: 150,
+      });
+    });
+
+    hitArea.on('pointerdown', () => {
+      this.tweens.add({
+        targets: this.startWaveButton,
+        scale: 0.95,
+        duration: 50,
+        yoyo: true,
+        onComplete: () => this.onStartWaveClick(),
+      });
+    });
   }
 
   private onStartWaveClick(): void {
@@ -822,6 +881,47 @@ export class GameScene extends Phaser.Scene {
         gameManager.emit('game:victory', gameManager.getState().score);
       }
     }
+  }
+
+  private createLevelFromEditorData(editorData: any): LevelData {
+    return {
+      id: 999,
+      name: 'Test Level',
+      description: 'Level from editor',
+      gridWidth: GAME_CONFIG.GRID_COLS,
+      gridHeight: GAME_CONFIG.GRID_ROWS,
+      spawnPoints: editorData.spawnPoints,
+      targetPoints: editorData.targetPoints,
+      paths: editorData.paths,
+      buildableArea: [],
+      waves: [
+        {
+          waveNumber: 1,
+          enemies: [
+            { type: 'traffic_spike', count: 5, interval: 1000 },
+          ],
+          reward: 100,
+        },
+        {
+          waveNumber: 2,
+          enemies: [
+            { type: 'traffic_spike', count: 3, interval: 800 },
+            { type: 'memory_leak', count: 2, interval: 1500 },
+          ],
+          reward: 150,
+        },
+        {
+          waveNumber: 3,
+          enemies: [
+            { type: 'ddos', count: 3, interval: 1000 },
+            { type: 'traffic_spike', count: 4, interval: 600 },
+          ],
+          reward: 200,
+        },
+      ],
+      startingMoney: 500,
+      startingErrorBudget: 100,
+    };
   }
 
   private createMockLevel(): LevelData {

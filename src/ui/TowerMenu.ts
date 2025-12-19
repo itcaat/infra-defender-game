@@ -27,12 +27,20 @@ export class TowerMenu extends Phaser.GameObjects.Container {
 
   private createMenu(): void {
     // Create tower buttons without background panel
-    const towerTypes: TowerType[] = ['nginx', 'load_balancer', 'redis', 'kafka', 'postgresql', 'prometheus'];
+    const towerTypes: TowerType[] = ['nginx', 'prometheus', 'redis', 'api_gateway', 'clickhouse', 'postgresql', 'kafka'];
+    
+    // Sort by cost (lowest to highest)
+    const sortedTowerTypes = towerTypes.sort((a, b) => {
+      return TOWER_CONFIGS[a].cost - TOWER_CONFIGS[b].cost;
+    });
+    
     const buttonWidth = 90;
-    const startX = -270; // Center the buttons
+    const numButtons = sortedTowerTypes.length;
+    const totalWidth = numButtons * buttonWidth + (numButtons - 1) * 5;
+    const startX = -totalWidth / 2 + buttonWidth / 2;
     const startY = 0;
 
-    towerTypes.forEach((towerType, index) => {
+    sortedTowerTypes.forEach((towerType, index) => {
       const x = startX + index * (buttonWidth + 5);
       const button = this.createTowerButton(towerType, x, startY);
       this.buttons.set(towerType, button);
@@ -54,10 +62,10 @@ export class TowerMenu extends Phaser.GameObjects.Container {
     
     // Button background with better styling
     const bg = this.scene.add.graphics();
-    bg.fillStyle(0x1a1a1a, 1);
+    bg.fillStyle(0x3a3a3a, 1);
     bg.fillRoundedRect(-42.5, -40, 85, 80, 10);
     
-    bg.fillStyle(0x2a2a2a, 0.9);
+    bg.fillStyle(0x4a4a4a, 0.9);
     bg.fillRoundedRect(-42.5 + 3, -40 + 3, 79, 74, 8);
     
     // Interactive area
@@ -89,8 +97,8 @@ export class TowerMenu extends Phaser.GameObjects.Container {
     cost.setOrigin(0.5);
 
     // Name (shortened)
-    const name = this.scene.add.text(0, 30, desc.name.substring(0, 8), {
-      font: '10px Arial',
+    const name = this.scene.add.text(0, 30, desc.name.substring(0, 9), {
+      font: '9px Arial',
       color: theme.hintColor,
     });
     name.setOrigin(0.5);
@@ -131,20 +139,20 @@ export class TowerMenu extends Phaser.GameObjects.Container {
     this.buttons.forEach((button, type) => {
       const bg = button.list[1] as Phaser.GameObjects.Graphics;
       if (type === towerType) {
-        // Selected state
+        // Selected state - lighter with green tint
         bg.clear();
-        bg.fillStyle(0x1a1a1a, 1);
+        bg.fillStyle(0x3a4a3a, 1);
         bg.fillRoundedRect(-42.5, -40, 85, 80, 10);
         
-        bg.fillStyle(0x1a4a1a, 1);
+        bg.fillStyle(0x3a5a3a, 1);
         bg.fillRoundedRect(-42.5 + 3, -40 + 3, 79, 74, 8);
       } else {
-        // Normal state
+        // Normal state - lighter gray
         bg.clear();
-        bg.fillStyle(0x1a1a1a, 1);
+        bg.fillStyle(0x3a3a3a, 1);
         bg.fillRoundedRect(-42.5, -40, 85, 80, 10);
         
-        bg.fillStyle(0x2a2a2a, 0.9);
+        bg.fillStyle(0x4a4a4a, 0.9);
         bg.fillRoundedRect(-42.5 + 3, -40 + 3, 79, 74, 8);
         
         button.setScale(1);

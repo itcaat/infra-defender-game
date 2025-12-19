@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telegram Mini Apps Test Environment</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #17212b;
+      color: #fff;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: #00ff00;
+    }
+    .info {
+      background: #232e3c;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    .info h2 {
+      margin-top: 0;
+      color: #00ff00;
+    }
+    iframe {
+      width: 100%;
+      height: 800px;
+      border: 2px solid #00ff00;
+      border-radius: 8px;
+      background: #000;
+    }
+    .warning {
+      background: #3a2a1a;
+      border-left: 4px solid #ff9800;
+      padding: 12px;
+      margin: 20px 0;
+    }
+    code {
+      background: #1a1a1a;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 Telegram Mini Apps Test Environment</h1>
+    
+    <div class="info">
+      <h2>ℹ️ About This Test Page</h2>
+      <p>This page simulates the Telegram Mini Apps environment for local testing.</p>
+      <p>The game will detect it's NOT in Telegram and use default theme.</p>
+    </div>
+
+    <div class="warning">
+      <strong>⚠️ Note:</strong> To test real Telegram integration:
+      <ol>
+        <li>Deploy the app to a public URL (e.g., GitHub Pages, Vercel)</li>
+        <li>Create a Telegram Bot via <a href="https://t.me/BotFather" style="color: #00ff00">@BotFather</a></li>
+        <li>Set the bot's Mini App URL to your deployed URL</li>
+        <li>Open the Mini App from Telegram</li>
+      </ol>
+    </div>
+
+    <div class="info">
+      <h2>🎮 Game Preview</h2>
+      <p>The game below is running in browser mode (not Telegram):</p>
+    </div>
+
+    <iframe src="http://localhost:3000/" title="Infra Defender Game"></iframe>
+
+    <div class="info">
+      <h2>🔍 Testing Checklist</h2>
+      <ul>
+        <li>✅ Game loads and initializes</li>
+        <li>✅ Phaser canvas renders correctly</li>
+        <li>✅ "Running in Browser" message appears (not "Running in Telegram")</li>
+        <li>✅ Default theme is applied</li>
+        <li>✅ No console errors</li>
+      </ul>
+    </div>
+
+    <div class="info">
+      <h2>📱 Telegram Environment Detection</h2>
+      <p>When running in actual Telegram Mini App:</p>
+      <ul>
+        <li>Message will show "Running in Telegram Mini Apps"</li>
+        <li>User's first name will be displayed</li>
+        <li>Telegram theme colors will be applied</li>
+        <li>Click on text will show native Telegram alert</li>
+        <li><code>telegram.isTelegram()</code> returns <code>true</code></li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>
+

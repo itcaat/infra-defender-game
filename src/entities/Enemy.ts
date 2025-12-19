@@ -120,9 +120,43 @@ export class Enemy extends Phaser.GameObjects.Container {
     this.enemyData.health = Math.max(0, this.enemyData.health - amount);
     this.updateHealthBar();
 
+    // Damage flash effect
+    this.scene.tweens.add({
+      targets: this.enemySprite,
+      alpha: 0.3,
+      duration: 100,
+      yoyo: true,
+    });
+
+    // Show damage number
+    this.showDamageNumber(amount);
+
     if (this.enemyData.health <= 0) {
       this.onDeath();
     }
+  }
+
+  /**
+   * Show floating damage number
+   */
+  private showDamageNumber(damage: number): void {
+    const damageText = this.scene.add.text(0, -30, `-${Math.round(damage)}`, {
+      font: 'bold 16px Arial',
+      color: '#ff0000',
+      stroke: '#000000',
+      strokeThickness: 3,
+    });
+    damageText.setOrigin(0.5);
+    this.add(damageText);
+
+    this.scene.tweens.add({
+      targets: damageText,
+      y: -60,
+      alpha: 0,
+      duration: 800,
+      ease: 'Cubic.easeOut',
+      onComplete: () => damageText.destroy(),
+    });
   }
 
   /**
@@ -165,9 +199,34 @@ export class Enemy extends Phaser.GameObjects.Container {
    * Handle death
    */
   private onDeath(): void {
-    console.log('Enemy died! Reward:', this.enemyData.reward);
-    this.scene.events.emit('enemy:killed', this.enemyData);
-    this.destroy();
+    console.log('💀 Enemy died! Reward:', this.enemyData.reward);
+    
+    // Death animation
+    this.scene.tweens.add({
+      targets: this,
+      scale: 0,
+      alpha: 0,
+      duration: 300,
+      ease: 'Back.easeIn',
+      onComplete: () => {
+        this.scene.events.emit('enemy:killed', this.enemyData);
+        this.destroy();
+      }
+    });
+
+    // Death particles
+    for (let i = 0; i < 5; i++) {
+      const particle = this.scene.add.circle(this.x, this.y, 4, 0xff0000);
+      const angle = (Math.PI * 2 * i) / 5;
+      this.scene.tweens.add({
+        targets: particle,
+        x: this.x + Math.cos(angle) * 50,
+        y: this.y + Math.sin(angle) * 50,
+        alpha: 0,
+        duration: 500,
+        onComplete: () => particle.destroy(),
+      });
+    }
   }
 
   /**

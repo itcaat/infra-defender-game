@@ -8,8 +8,10 @@ import { gameManager } from '../game/GameManager';
 import { GridSystem } from '../systems/GridSystem';
 import { WaveManager } from '../systems/WaveManager';
 import { TowerMenu } from '../ui/TowerMenu';
+import { TowerInfoPanel } from '../ui/TowerInfoPanel';
 import { Tower } from '../entities/Tower';
 import { Enemy } from '../entities/Enemy';
+import { Projectile } from '../entities/Projectile';
 import type { LevelData, GridPosition, TowerType, EnemyType } from '../types/phaser.types';
 import { TOWER_CONFIGS } from '../config/towers.config';
 
@@ -18,10 +20,12 @@ export class GameScene extends Phaser.Scene {
   private gridSystem!: GridSystem;
   private waveManager!: WaveManager;
   private towerMenu!: TowerMenu;
+  private towerInfoPanel!: TowerInfoPanel;
   private selectedTowerType: TowerType | null = null;
   private previewGraphics!: Phaser.GameObjects.Graphics;
   private towers: Tower[] = [];
   private enemies: Enemy[] = [];
+  private projectiles: Projectile[] = [];
   private startWaveButton!: Phaser.GameObjects.Container;
   private level!: LevelData;
 
@@ -61,6 +65,13 @@ export class GameScene extends Phaser.Scene {
     );
     this.towerMenu.setDepth(100);
 
+    // Create tower info panel
+    this.towerInfoPanel = new TowerInfoPanel(
+      this,
+      (tower) => this.upgradeTower(tower),
+      (tower) => this.sellTower(tower)
+    );
+
     // Create start wave button
     this.createStartWaveButton();
 
@@ -70,8 +81,40 @@ export class GameScene extends Phaser.Scene {
     // Listen to game manager events
     this.setupGameEvents();
 
+    // Add tutorial text
+    this.addTutorialText();
+
     console.log('✅ GameScene: Ready');
-    console.log('💡 Place some towers, then click "Start Wave" to begin!');
+    console.log('💡 Click a tower below to select it, then click on the grid to place!');
+  }
+
+  private addTutorialText(): void {
+    const centerX = this.cameras.main.width / 2;
+    const centerY = this.cameras.main.height / 2;
+
+    const tutorialText = this.add.text(centerX, centerY - 100, 
+      '👇 Click a tower below to select it\nThen click on the grid to place!', {
+      font: 'bold 24px Arial',
+      color: '#00ff00',
+      align: 'center',
+      backgroundColor: '#000000',
+      padding: { x: 20, y: 10 },
+    });
+    tutorialText.setOrigin(0.5);
+    tutorialText.setDepth(200);
+    tutorialText.setAlpha(0.9);
+
+    // Make it blink
+    this.tweens.add({
+      targets: tutorialText,
+      alpha: 0.5,
+      duration: 1000,
+      yoyo: true,
+      repeat: 2,
+      onComplete: () => {
+        tutorialText.destroy();
+      }
+    });
   }
 
   private createGrid(): void {
@@ -124,6 +167,10 @@ export class GameScene extends Phaser.Scene {
 
     // Grid click handler
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      // Don't process clicks on UI elements (bottom 150px and right 150px)
+      if (pointer.y > this.cameras.main.height - 150) return;
+      if (pointer.x > this.cameras.main.width - 150 && pointer.y > this.cameras.main.height - 150) return;
+      
       this.handleGridClick(pointer.x, pointer.y);
     });
 
@@ -134,13 +181,22 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleGridClick(worldX: number, worldY: number): void {
-    if (!this.selectedTowerType) return;
+    // Close tower info panel if open
+    if (this.towerInfoPanel.isVisible()) {
+      this.towerInfoPanel.hide();
+    }
+
+    if (!this.selectedTowerType) {
+      this.showHint('Select a tower from the menu below first!');
+      return;
+    }
 
     const gridPos = this.gridSystem.worldToGrid(worldX, worldY);
 
     // Check if placement is valid
     if (!this.gridSystem.isValidPlacement(gridPos.x, gridPos.y)) {
       console.log('❌ Invalid placement position');
+      this.showHint("Can't place here! Try another spot.");
       return;
     }
 
@@ -148,6 +204,7 @@ export class GameScene extends Phaser.Scene {
     const towerConfig = TOWER_CONFIGS[this.selectedTowerType];
     if (!gameManager.spendMoney(towerConfig.cost)) {
       console.log('❌ Not enough money!');
+      this.showHint(`Not enough money! Need 💰${towerConfig.cost}`);
       return;
     }
 
@@ -169,6 +226,28 @@ export class GameScene extends Phaser.Scene {
     // Mark cell as occupied
     this.gridSystem.occupyCell(gridX, gridY);
 
+    // Placement animation
+    tower.setScale(0);
+    tower.setAlpha(0);
+    this.tweens.add({
+      targets: tower,
+      scale: 1,
+      alpha: 1,
+      duration: 300,
+      ease: 'Back.easeOut',
+    });
+
+    // Flash effect on grid
+    const flash = this.add.circle(worldPos.x, worldPos.y, 40, 0x00ff00, 0.5);
+    this.tweens.add({
+      targets: flash,
+      scale: 2,
+      alpha: 0,
+      duration: 400,
+      onComplete: () => flash.destroy(),
+    });
+
+    this.showHint(`✅ ${towerType} placed!`);
     console.log(`✅ Placed ${towerType} at (${gridX}, ${gridY})`);
   }
 
@@ -203,11 +282,39 @@ export class GameScene extends Phaser.Scene {
   private onTowerSelected(towerType: TowerType | null): void {
     this.selectedTowerType = towerType;
     if (towerType) {
-      console.log(`🔨 Selected tower: ${towerType}`);
+      const config = TOWER_CONFIGS[towerType];
+      console.log(`🔨 Selected tower: ${towerType} (💰${config.cost})`);
+      
+      // Show selection hint
+      this.showHint(`${towerType} selected! Click on the grid to place.`);
     } else {
       console.log('❌ Tower selection cancelled');
       this.previewGraphics.clear();
     }
+  }
+
+  private showHint(message: string): void {
+    const centerX = this.cameras.main.width / 2;
+    const y = 100;
+
+    const hint = this.add.text(centerX, y, message, {
+      font: 'bold 18px Arial',
+      color: '#ffff00',
+      backgroundColor: '#000000',
+      padding: { x: 15, y: 8 },
+    });
+    hint.setOrigin(0.5);
+    hint.setDepth(200);
+
+    // Fade out after 2 seconds
+    this.tweens.add({
+      targets: hint,
+      alpha: 0,
+      y: y - 20,
+      duration: 2000,
+      delay: 1000,
+      onComplete: () => hint.destroy()
+    });
   }
 
   private setupGameEvents(): void {
@@ -251,6 +358,59 @@ export class GameScene extends Phaser.Scene {
       // Remove enemy from array
       this.enemies = this.enemies.filter(e => e.getData().health > 0);
     });
+
+    // Listen to tower attack events
+    this.events.on('tower:attack', (data: { tower: Tower; target: Enemy; damage: number }) => {
+      this.spawnProjectile(data.tower, data.target, data.damage);
+    });
+
+    // Listen to tower selection events
+    this.events.on('tower:selected', (tower: Tower) => {
+      this.onTowerClicked(tower);
+    });
+  }
+
+  private onTowerClicked(tower: Tower): void {
+    // Close tower menu selection
+    this.towerMenu.clearSelection();
+    this.selectedTowerType = null;
+    this.previewGraphics.clear();
+
+    // Show info panel
+    this.towerInfoPanel.show(tower);
+    console.log('🔍 Tower selected for info');
+  }
+
+  private upgradeTower(tower: Tower): void {
+    const data = tower.getData();
+    
+    if (gameManager.spendMoney(data.upgradeCost)) {
+      tower.upgrade();
+      this.showHint(`✨ Tower upgraded to Level ${data.level + 1}!`);
+    } else {
+      this.showHint(`❌ Not enough money! Need 💰${data.upgradeCost}`);
+    }
+  }
+
+  private sellTower(tower: Tower): void {
+    const data = tower.getData();
+    const sellValue = Math.round(data.cost * 0.7);
+    
+    // Get tower grid position
+    const gridPos = this.gridSystem.worldToGrid(tower.x, tower.y);
+    
+    // Free the cell
+    this.gridSystem.freeCell(gridPos.x, gridPos.y);
+    
+    // Remove tower
+    this.towers = this.towers.filter(t => t !== tower);
+    tower.destroy();
+    
+    // Give money back
+    gameManager.addMoney(sellValue);
+    
+    this.showHint(`💰 Tower sold for ${sellValue}`);
+    console.log(`💰 Sold tower for ${sellValue}`);
   }
 
   private onGameOver(): void {
@@ -316,12 +476,22 @@ export class GameScene extends Phaser.Scene {
     console.log(`👾 Spawned ${type}`);
   }
 
+  private spawnProjectile(tower: Tower, target: Enemy, damage: number): void {
+    const projectile = new Projectile(this, tower.x, tower.y, target, damage);
+    this.projectiles.push(projectile);
+  }
+
   update(time: number, delta: number): void {
-    // Update all towers
-    this.towers.forEach(tower => tower.update(time, delta));
+    // Update all towers (pass enemies for targeting)
+    this.towers.forEach(tower => tower.update(time, delta, this.enemies));
 
     // Update all enemies
     this.enemies.forEach(enemy => enemy.update(time, delta));
+
+    // Update all projectiles
+    this.projectiles = this.projectiles.filter(projectile => {
+      return projectile.update(delta);
+    });
 
     // Update wave manager
     this.waveManager.update(delta, (type) => this.spawnEnemy(type));

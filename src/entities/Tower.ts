@@ -55,35 +55,79 @@ export class Tower extends Phaser.GameObjects.Container {
 
     // Hover effects
     this.on('pointerover', () => {
-      this.towerSprite.setFillStyle(0x00ff00, 0.5);
+      this.towerSprite.setAlpha(0.7);
       this.showRange();
     });
 
     this.on('pointerout', () => {
-      this.towerSprite.setFillStyle(0x00ff00, 1);
+      this.towerSprite.setAlpha(1);
       this.hideRange();
+    });
+
+    // Click handler (will be connected by scene)
+    this.on('pointerdown', () => {
+      this.scene.events.emit('tower:selected', this);
     });
   }
 
   /**
    * Update tower logic (called every frame)
    */
-  update(time: number, delta: number): void {
+  update(time: number, delta: number, enemies: any[]): void {
     // Check if can attack
     const attackCooldown = 1000 / this.towerData.attackSpeed;
     if (time - this.lastAttackTime >= attackCooldown) {
-      this.tryAttack(time);
+      this.tryAttack(time, enemies);
     }
   }
 
   /**
    * Try to find and attack an enemy
    */
-  private tryAttack(time: number): void {
-    // TODO: Find enemies in range
-    // TODO: Fire projectile at enemy
-    // For now, just update last attack time
-    this.lastAttackTime = time;
+  private tryAttack(time: number, enemies: any[]): void {
+    // Find closest enemy in range
+    const target = this.findTarget(enemies);
+    
+    if (target) {
+      this.attack(target);
+      this.lastAttackTime = time;
+    }
+  }
+
+  /**
+   * Find closest enemy in range
+   */
+  private findTarget(enemies: any[]): any | null {
+    let closestEnemy: any | null = null;
+    let closestDistance = this.towerData.range;
+
+    enemies.forEach(enemy => {
+      if (enemy.getData().health <= 0) return;
+
+      const distance = Phaser.Math.Distance.Between(
+        this.x, this.y,
+        enemy.x, enemy.y
+      );
+
+      if (distance <= closestDistance) {
+        closestDistance = distance;
+        closestEnemy = enemy;
+      }
+    });
+
+    return closestEnemy;
+  }
+
+  /**
+   * Attack an enemy
+   */
+  private attack(target: any): void {
+    // Emit event to spawn projectile (scene will handle this)
+    this.scene.events.emit('tower:attack', {
+      tower: this,
+      target: target,
+      damage: this.towerData.damage,
+    });
   }
 
   /**
@@ -115,10 +159,29 @@ export class Tower extends Phaser.GameObjects.Container {
     this.towerData.damage *= 1.5;
     this.towerData.range *= 1.1;
     this.towerData.attackSpeed *= 1.2;
+    this.towerData.cost += this.towerData.upgradeCost;
+    this.towerData.upgradeCost = Math.round(this.towerData.upgradeCost * 1.5);
 
     // Update visual
-    this.towerSprite.setFillStyle(0x00ff00, 1);
-    console.log(`Tower upgraded to level ${this.towerData.level}`);
+    const scale = 1 + (this.towerData.level - 1) * 0.15;
+    this.setScale(scale);
+    
+    // Update level text
+    const levelText = this.list.find(obj => obj.type === 'Text') as Phaser.GameObjects.Text;
+    if (levelText) {
+      levelText.setText(`Lv${this.towerData.level}`);
+    }
+
+    // Flash effect
+    this.scene.tweens.add({
+      targets: this.towerSprite,
+      alpha: 0.3,
+      duration: 100,
+      yoyo: true,
+      repeat: 2,
+    });
+
+    console.log(`✨ Tower upgraded to level ${this.towerData.level}`);
   }
 
   /**

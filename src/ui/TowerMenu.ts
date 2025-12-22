@@ -5,7 +5,6 @@
 import Phaser from 'phaser';
 import type { TowerType } from '../types/phaser.types';
 import { TOWER_CONFIGS, TOWER_DESCRIPTIONS } from '../config/towers.config';
-import { telegram } from '../telegram/telegram';
 
 export class TowerMenu extends Phaser.GameObjects.Container {
   private selectedTower: TowerType | null = null;
@@ -48,9 +47,12 @@ export class TowerMenu extends Phaser.GameObjects.Container {
   }
 
   private createTowerButton(towerType: TowerType, x: number, y: number): Phaser.GameObjects.Container {
-    const theme = telegram.isTelegram() 
-      ? telegram.getTheme()! 
-      : telegram.getDefaultTheme();
+    const theme = {
+      buttonColor: '#4CAF50',
+      buttonTextColor: '#ffffff',
+      textColor: '#ffffff',
+      hintColor: '#aaaaaa',
+    };
 
     const config = TOWER_CONFIGS[towerType];
     const desc = TOWER_DESCRIPTIONS[towerType];

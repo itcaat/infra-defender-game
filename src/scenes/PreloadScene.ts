@@ -43,7 +43,7 @@ export class PreloadScene extends Phaser.Scene {
   create(): void {
     console.log('✅ PreloadScene: Assets loaded');
     
-    // Start the main menu
+    // Go directly to main menu
     this.scene.start(SCENES.MAIN_MENU);
   }
 

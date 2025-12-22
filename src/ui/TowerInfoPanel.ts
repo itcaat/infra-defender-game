@@ -4,7 +4,6 @@
 
 import Phaser from 'phaser';
 import type { Tower } from '../entities/Tower';
-import { telegram } from '../telegram/telegram';
 import { TOWER_DESCRIPTIONS } from '../config/towers.config';
 
 export class TowerInfoPanel extends Phaser.GameObjects.Container {
@@ -33,9 +32,14 @@ export class TowerInfoPanel extends Phaser.GameObjects.Container {
   }
 
   private createPanel(): void {
-    const theme = telegram.isTelegram() 
-      ? telegram.getTheme()! 
-      : telegram.getDefaultTheme();
+    const theme = {
+      bgColor: '#1a1a1a',
+      textColor: '#ffffff',
+      hintColor: '#aaaaaa',
+      buttonColor: '#4CAF50',
+      buttonTextColor: '#ffffff',
+      secondaryBgColor: '#2a2a2a',
+    };
 
     const width = 250;
     const height = 280;
@@ -117,9 +121,10 @@ export class TowerInfoPanel extends Phaser.GameObjects.Container {
     height: number, 
     onClick: () => void
   ): Phaser.GameObjects.Container {
-    const theme = telegram.isTelegram() 
-      ? telegram.getTheme()! 
-      : telegram.getDefaultTheme();
+    const theme = {
+      buttonColor: '#4CAF50',
+      buttonTextColor: '#ffffff',
+    };
 
     const bg = this.scene.add.rectangle(0, 0, width, height,
       parseInt(theme.buttonColor.replace('#', '0x'), 16));

@@ -5,7 +5,6 @@
 import Phaser from 'phaser';
 import { SCENES } from '../config/game.config';
 import { gameManager } from '../game/GameManager';
-import { telegram } from '../telegram/telegram';
 
 export class UIScene extends Phaser.Scene {
   private moneyText!: Phaser.GameObjects.Text;
@@ -20,9 +19,11 @@ export class UIScene extends Phaser.Scene {
   create(): void {
     console.log('🖥️ UIScene: Creating UI...');
 
-    const theme = telegram.isTelegram() 
-      ? telegram.getTheme()! 
-      : telegram.getDefaultTheme();
+    const theme = {
+      secondaryBgColor: '#2a2a2a',
+      buttonColor: '#4CAF50',
+      textColor: '#ffffff',
+    };
 
     // Top panel background with gradient effect
     const panelGraphics = this.add.graphics();
@@ -52,9 +53,9 @@ export class UIScene extends Phaser.Scene {
   }
 
   private createTopBar(): void {
-    const theme = telegram.isTelegram() 
-      ? telegram.getTheme()! 
-      : telegram.getDefaultTheme();
+    const theme = {
+      textColor: '#ffffff',
+    };
 
     const padding = 20;
     const y = 30;
@@ -107,16 +108,12 @@ export class UIScene extends Phaser.Scene {
     this.scoreText.setText(`⭐ Score: ${state.score}`);
 
     // Color coding for error budget
-    const theme = telegram.isTelegram() 
-      ? telegram.getTheme()! 
-      : telegram.getDefaultTheme();
-
     if (state.errorBudget < 30) {
       this.errorBudgetText.setColor('#ff0000');
     } else if (state.errorBudget < 60) {
       this.errorBudgetText.setColor('#ff9800');
     } else {
-      this.errorBudgetText.setColor(theme.textColor);
+      this.errorBudgetText.setColor('#ffffff');
     }
   }
 }

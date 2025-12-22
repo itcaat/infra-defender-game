@@ -4,7 +4,6 @@
 
 import Phaser from 'phaser';
 import type { Ability, AbilityType } from '../systems/AbilitySystem';
-import { telegram } from '../telegram/telegram';
 
 export class AbilityBar extends Phaser.GameObjects.Container {
   private buttons: Map<AbilityType, Phaser.GameObjects.Container> = new Map();
@@ -46,9 +45,11 @@ export class AbilityBar extends Phaser.GameObjects.Container {
     y: number,
     size: number
   ): Phaser.GameObjects.Container {
-    const theme = telegram.isTelegram() 
-      ? telegram.getTheme()! 
-      : telegram.getDefaultTheme();
+    const theme = {
+      buttonColor: '#4CAF50',
+      buttonTextColor: '#ffffff',
+      textColor: '#ffffff',
+    };
 
     // Button shadow
     const shadow = this.scene.add.graphics();

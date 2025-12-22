@@ -525,7 +525,8 @@ export class LevelEditorScene extends Phaser.Scene {
       });
       
       const img = dom.node as HTMLImageElement;
-      img.src = `animations/${decor.type === 'tux' ? 'tux-linux-tux.gif' : decor.type === 'tenor' ? 'tenor.gif' : 'peppo-dance.gif'}`;
+      const basePath = import.meta.env.BASE_URL || '/';
+      img.src = `${basePath}animations/${decor.type === 'tux' ? 'tux-linux-tux.gif' : decor.type === 'tenor' ? 'tenor.gif' : 'peppo-dance.gif'}`;
       
       dom.setDepth(2); // Above grid, below UI
       this.decorSprites.push(dom as any);
@@ -624,7 +625,8 @@ export class LevelEditorScene extends Phaser.Scene {
       });
       
       const img = dom.node as HTMLImageElement;
-      img.src = `animations/${this.selectedDecorType === 'tux' ? 'tux-linux-tux.gif' : this.selectedDecorType === 'tenor' ? 'tenor.gif' : 'peppo-dance.gif'}`;
+      const basePath = import.meta.env.BASE_URL || '/';
+      img.src = `${basePath}animations/${this.selectedDecorType === 'tux' ? 'tux-linux-tux.gif' : this.selectedDecorType === 'tenor' ? 'tenor.gif' : 'peppo-dance.gif'}`;
       
       dom.setDepth(6);
       this.previewSprite = dom as any;

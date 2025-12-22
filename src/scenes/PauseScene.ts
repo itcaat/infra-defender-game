@@ -5,7 +5,6 @@
 import Phaser from 'phaser';
 import { SCENES } from '../config/game.config';
 import { gameManager } from '../game/GameManager';
-import { telegram } from '../telegram/telegram';
 
 export class PauseScene extends Phaser.Scene {
   constructor() {
@@ -15,9 +14,10 @@ export class PauseScene extends Phaser.Scene {
   create(): void {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
-    const theme = telegram.isTelegram() 
-      ? telegram.getTheme()! 
-      : telegram.getDefaultTheme();
+    const theme = {
+      buttonColor: '#4CAF50',
+      buttonTextColor: '#ffffff',
+    };
 
     // Semi-transparent overlay
     const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.7);
@@ -45,9 +45,10 @@ export class PauseScene extends Phaser.Scene {
   }
 
   private createButton(x: number, y: number, text: string, onClick: () => void): Phaser.GameObjects.Container {
-    const theme = telegram.isTelegram() 
-      ? telegram.getTheme()! 
-      : telegram.getDefaultTheme();
+    const theme = {
+      buttonColor: '#4CAF50',
+      buttonTextColor: '#ffffff',
+    };
 
     // Button shadow
     const shadow = this.add.graphics();

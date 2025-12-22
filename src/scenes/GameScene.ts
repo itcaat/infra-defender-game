@@ -214,7 +214,8 @@ export class GameScene extends Phaser.Scene {
         });
         
         const img = dom.node as HTMLImageElement;
-        img.src = `animations/${decor.type === 'tux' ? 'tux-linux-tux.gif' : decor.type === 'tenor' ? 'tenor.gif' : 'peppo-dance.gif'}`;
+        const basePath = import.meta.env.BASE_URL || '/';
+        img.src = `${basePath}animations/${decor.type === 'tux' ? 'tux-linux-tux.gif' : decor.type === 'tenor' ? 'tenor.gif' : 'peppo-dance.gif'}`;
         
         dom.setDepth(2); // Above grid, below towers
       });
@@ -1036,7 +1037,8 @@ export class GameScene extends Phaser.Scene {
 
   private async loadLevelFromFile(levelId: number): Promise<any | null> {
     try {
-      const response = await fetch(`/levels/level-${levelId}.json`);
+      const basePath = import.meta.env.BASE_URL || '/';
+      const response = await fetch(`${basePath}levels/level-${levelId}.json`);
       if (response.ok) {
         const data = await response.json();
         console.log(`✅ Loaded level-${levelId}.json from file`);

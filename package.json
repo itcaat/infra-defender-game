@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build": "tsc && NODE_ENV=production vite build",
+    "preview": "vite preview --base /infra-defender-game/"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

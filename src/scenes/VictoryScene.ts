@@ -5,8 +5,6 @@
 import Phaser from 'phaser';
 import { SCENES } from '../config/game.config';
 import { gameManager } from '../game/GameManager';
-import { telegram } from '../telegram/telegram';
-import { supabase } from '../supabase/client';
 
 export class VictoryScene extends Phaser.Scene {
   constructor() {
@@ -16,9 +14,14 @@ export class VictoryScene extends Phaser.Scene {
   async create(): Promise<void> {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
-    const theme = telegram.isTelegram() 
-      ? telegram.getTheme()! 
-      : telegram.getDefaultTheme();
+    const theme = {
+      bgColor: '#1a1a1a',
+      textColor: '#ffffff',
+      hintColor: '#aaaaaa',
+      buttonColor: '#4CAF50',
+      buttonTextColor: '#ffffff',
+      successColor: '#4CAF50',
+    };
 
     const state = gameManager.getState();
 
@@ -133,28 +136,16 @@ export class VictoryScene extends Phaser.Scene {
     });
   }
 
-  private async saveScore(score: number): Promise<void> {
-    const user = telegram.getUser();
-    if (!user) return;
-
-    try {
-      await supabase.submitScore(
-        user.id.toString(),
-        user.firstName,
-        user.username,
-        score,
-        1 // Level ID
-      );
-      console.log('✅ Score saved to leaderboard');
-    } catch (error) {
-      console.error('❌ Failed to save score:', error);
-    }
+  private async saveScore(_score: number): Promise<void> {
+    // Score saving disabled (no backend integration)
+    console.log('💾 Score saving disabled');
   }
 
   private createButton(x: number, y: number, text: string, onClick: () => void): void {
-    const theme = telegram.isTelegram() 
-      ? telegram.getTheme()! 
-      : telegram.getDefaultTheme();
+    const theme = {
+      buttonColor: '#4CAF50',
+      buttonTextColor: '#ffffff',
+    };
 
     // Button shadow
     const shadow = this.add.graphics();

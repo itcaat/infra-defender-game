@@ -96,3 +96,4 @@ To deploy as a Telegram Mini App:
 - All game data is stored in browser localStorage
 - Supabase is optional and runs in mock mode if not configured
 
+
